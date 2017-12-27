@@ -6,11 +6,15 @@
 #include <cstdio>
 #include <string>
 
+
 std::string inPath = "../data/FB15K/";
 std::string outPath = "../data/FB15K/";
 
+
 extern "C"
-void setInPath(char *path) {
+void setInPath(
+		char* path)
+{
 	INT len = strlen(path);
 	inPath = "";
 	for (INT i = 0; i < len; i++)
@@ -18,8 +22,11 @@ void setInPath(char *path) {
 	printf("Input Files Path : %s\n", inPath.c_str());
 }
 
+
 extern "C"
-void setOutPath(char *path) {
+void setOutPath(
+		char* path)
+{
 	INT len = strlen(path);
 	outPath = "";
 	for (INT i = 0; i < len; i++)
@@ -27,14 +34,18 @@ void setOutPath(char *path) {
 	printf("Output Files Path : %s\n", outPath.c_str());
 }
 
+
 /*
 ============================================================
 */
 
+
 INT workThreads = 1;
 
+
 extern "C"
-void setWorkThreads(INT threads) {
+void setWorkThreads(INT threads)
+{
 	workThreads = threads;
 }
 
@@ -83,15 +94,19 @@ extern "C"
 INT getValidTotal() {
 	return validTotal;
 }
+
+
 /*
 ============================================================
 */
 
+
 INT bernFlag = 0;
 
+
 extern "C"
-void setBern(INT con) {
+void setBern(INT con)
+{
 	bernFlag = con;
 }
-
 #endif

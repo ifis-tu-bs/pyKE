@@ -1,117 +1,193 @@
 #ifndef TEST_H
-#define TEST_H
-#include "Setting.h"
-#include "Reader.h"
+#	define TEST_H
+#	include "Setting.h"
+#	include "Reader.h"
 
-bool _find(INT h, INT t, INT r) {
-    INT lef = 0;
-    INT rig = tripleTotal - 1;
-    INT mid;
-    while (lef + 1 < rig) {
-        INT mid = (lef + rig) >> 1;
-        if ((tripleList[mid]. h < h) || (tripleList[mid]. h == h && tripleList[mid]. r < r) || (tripleList[mid]. h == h && tripleList[mid]. r == r && tripleList[mid]. t < t)) lef = mid; else rig = mid;
-    }
-    if (tripleList[lef].h == h && tripleList[lef].r == r && tripleList[lef].t == t) return true;
-    if (tripleList[rig].h == h && tripleList[rig].r == r && tripleList[rig].t == t) return true;
-    return false;
+
+static bool exists(INT, INT, INT);
+extern "C" void getHeadBatch(INT*, INT*, INT*);
+extern "C" void getTailBatch(INT*, INT*, INT*);
+extern "C" void testHead(REAL*);
+extern "C" void testTail(REAL*);
+extern "C" void test(void);
+
+
+static bool exists(INT h, INT t, INT r)
+{
+	INT lef = 0;
+	INT rig = tripleTotal - 1;
+	while (lef + 1 < rig)
+	{
+		INT mid = (lef + rig) >> 1;
+		auto& T = tripleList[mid];
+		if (T.h == h)
+		{
+			if (T.r == r)
+			{
+				if (T.t == t)
+					return true;
+				if (T.t < t)
+					rig = mid;
+				else
+					lef = mid;
+				break;
+			}
+			if (T.r < r)
+				rig = mid;
+			else
+				lef = mid;
+			break;
+		}
+		if (T.h < h)
+			rig = mid;
+		else
+			lef = mid;
+	}
+	return false;
 }
 
-INT lastHead = 0;
-INT lastTail = 0;
-REAL l1_filter_tot = 0, l1_tot = 0, r1_tot = 0, r1_filter_tot = 0, l_tot = 0, r_tot = 0, l_filter_rank = 0, l_rank = 0;
-REAL l3_filter_tot = 0, l3_tot = 0, r3_tot = 0, r3_filter_tot = 0, l_filter_tot = 0, r_filter_tot = 0, r_filter_rank = 0, r_rank = 0;
+
+extern Triple* testList;
+INT lasthead = 0;
+INT lasttail = 0;
+
 
 extern "C"
-void getHeadBatch(INT *ph, INT *pt, INT *pr) {
-	for (INT i = 0; i < entityTotal; i++) {
-		ph[i] = i;
-		pt[i] = testList[lastHead].t;
-		pr[i] = testList[lastHead].r;
+void getHeadBatch(INT* h, INT* t, INT* r)
+{
+	auto& T = testList[lasthead];
+	for (INT i = 0; i < entityTotal; i++)
+	{
+		h[i] = i;
+		t[i] = T.t;
+		r[i] = T.r;
 	}
 }
 
+
 extern "C"
-void getTailBatch(INT *ph, INT *pt, INT *pr) {
-	for (INT i = 0; i < entityTotal; i++) {
-		ph[i] = testList[lastTail].h;
-		pt[i] = i;
-		pr[i] = testList[lastTail].r;
+void getTailBatch(INT* h, INT* t, INT* r)
+{
+	auto& T = testList[lasttail];
+	for (INT i = 0; i < entityTotal; i++)
+	{
+		h[i] = T.h;
+		t[i] = i;
+		r[i] = T.r;
 	}
 }
 
-extern "C"
-void testHead(REAL *con) {
-	INT h = testList[lastHead].h;
-	INT t = testList[lastHead].t;
-	INT r = testList[lastHead].r;
 
-	REAL minimal = con[h];
-	INT l_s = 0;
-	INT l_filter_s = 0;
-    INT l_s_constrain = 0;
+REAL counth1 = 0, counth1f = 0, countt1 = 0, countt1f = 0;
+REAL counth3 = 0, counth3f = 0, countt3 = 0, countt3f = 0;
+REAL counth10 = 0, counth10f = 0, countt10 = 0, countt10f = 0;
+REAL ranksumh = 0, ranksumhf = 0, ranksumt = 0, ranksumtf = 0;
 
-    for (INT j = 0; j <= entityTotal; j++) {
-        REAL value = con[j];
-        if (j != h && value < minimal) {
-            l_s += 1;
-            if (not _find(j, t, r))
-                l_filter_s += 1;
-        }
-    }
-
-    if (l_filter_s < 10) l_filter_tot += 1;
-    if (l_s < 10) l_tot += 1;
-    if (l_filter_s < 3) l3_filter_tot += 1;
-    if (l_s < 3) l3_tot += 1;
-    if (l_filter_s < 1) l1_filter_tot += 1;
-    if (l_s < 1) l1_tot += 1;
-	l_filter_rank += (l_filter_s+1);
-	l_rank += (1+l_s);
-	lastHead++;
-	printf("l_filter_s: %ld\n", l_filter_s);
-	printf("%f %f %f %f\n", l_tot / lastHead, l_filter_tot / lastHead, l_rank / lastHead, l_filter_rank / lastHead);
-}
 
 extern "C"
-void testTail(REAL *con) {
-	INT h = testList[lastTail].h;
-	INT t = testList[lastTail].t;
-	INT r = testList[lastTail].r;
+void testHead(
+		REAL* con)
+{
+	auto& T = testList[lasthead];
+	REAL minimal = con[T.h];
 
-	REAL minimal = con[t];
-	INT r_s = 0;
-	INT r_filter_s = 0;
-    INT r_s_constrain = 0;
+	INT rank = 1;
+	INT rankf = 1;
+	for (INT j = 0; j <= entityTotal; ++j)
+	{
+		REAL value = con[j];
+		if (j == T.h or value >= minimal)
+			continue;
+		++rank;
+		if (not exists(j, T.t, T.r))
+			++rankf;
+	}
 
-    for (INT j = 0; j <= entityTotal; j++) {
-        REAL value = con[j];
-        if (j != t && value < minimal) {
-            r_s += 1;
-            if (not _find(h, j, r))
-                r_filter_s += 1;
-        }
-    }
+	if (rankf <= 10)
+	{
+		++counth10f;
+		if (rank <= 10)
+			++counth10;
+		if (rankf <= 3)
+		{
+			++counth3f;
+			if (rank <= 3)
+				++counth3;
+			if (rankf <= 1)
+			{
+				++counth1f;
+				if (rank <= 1)
+					++counth1;
+			}
+		}
+	}
 
-	if (r_filter_s < 10) r_filter_tot += 1;
-	if (r_s < 10) r_tot += 1;
-    if (r_filter_s < 3) r3_filter_tot += 1;
-    if (r_s < 3) r3_tot += 1;
-    if (r_filter_s < 1) r1_filter_tot += 1;
-    if (r_s < 1) r1_tot += 1;
-	r_filter_rank += (1+r_filter_s);
-	r_rank += (1+r_s);
-	lastTail++;
-    printf("r_filter_s: %ld\n", r_filter_s);
-	printf("%f %f %f %f\n", r_tot /lastTail, r_filter_tot /lastTail, r_rank /lastTail, r_filter_rank /lastTail);
+	ranksumhf += rankf;
+	ranksumh += rank;
+
+	++lasthead;
 }
+
 
 extern "C"
-void test() {
-	printf("overall results:\n");
-	printf("left %f %f %f %f \n", l_rank/ testTotal, l_tot / testTotal, l3_tot / testTotal, l1_tot / testTotal);
-	printf("left(filter) %f %f %f %f \n", l_filter_rank/ testTotal, l_filter_tot / testTotal,  l3_filter_tot / testTotal,  l1_filter_tot / testTotal);
-	printf("right %f %f %f %f \n", r_rank/ testTotal, r_tot / testTotal,r3_tot / testTotal,r1_tot / testTotal);
-	printf("right(filter) %f %f %f %f\n", r_filter_rank/ testTotal, r_filter_tot / testTotal,r3_filter_tot / testTotal,r1_filter_tot / testTotal);
+void testTail(
+		REAL* con)
+{
+	auto& T = testList[lasttail];
+
+	REAL minimal = con[T.t];
+	INT rank = 1;
+	INT rankf = 1;
+	for (INT j = 0; j <= entityTotal; j++)
+	{
+		REAL value = con[j];
+		if (j == T.t or value >= minimal)
+			continue;
+		++rank;
+		if (not exists(T.h, j, T.r))
+			++rankf;
+	}
+
+	if (rankf <= 10)
+	{
+		++countt10f;
+		if (rank <= 10)
+			++countt10;
+		if (rankf <= 3)
+		{
+			++countt3f;
+			if (rank <= 3)
+				++countt3;
+			if (rankf <= 1)
+			{
+				++countt1f;
+				if (rank <= 1)
+					++countt1;
+			}
+		}
+	}
+
+	ranksumtf += rankf;
+	ranksumt += rank;
+
+	++lasttail;
 }
 
-#endif
+
+extern "C"
+void test(void)
+{
+	const auto& t = testTotal;
+	printf("\tsum\t#top 10\t#top 3\t#top\n");
+	printf("left\t%f\t%f\t%f\t%f\n",
+			ranksumh / t, counth10 / t, counth3 / t, counth1 / t);
+	printf("left(filter)\t%f\t%f\t%f\t%f\n",
+			ranksumhf / t, counth10f / t, counth3f / t, counth1f / t);
+	printf("right\t%f\t%f\t%f\t%f\n",
+			ranksumt / t, countt10 / t, countt3 / t, countt1 / t);
+	printf("right(filter)\t%f\t%f\t%f\t%f\n",
+			ranksumtf / t, countt10 / t, countt3f / t, countt1f / t);
+}
+
+
+#endif // TEST_H
