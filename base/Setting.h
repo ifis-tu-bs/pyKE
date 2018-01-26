@@ -9,6 +9,13 @@
 
 std::string inPath = "../data/FB15K/";
 std::string outPath = "../data/FB15K/";
+INT workThreads = 1;
+INT entityTotal = 0;
+INT relationTotal = 0;
+INT tripleTotal = 0;
+INT trainTotal = 0;
+INT testTotal = 0;
+INT validTotal = 0;
 
 
 extern "C"
@@ -35,78 +42,44 @@ void setOutPath(
 }
 
 
-/*
-============================================================
-*/
-
-
-INT workThreads = 1;
-
-
 extern "C"
-void setWorkThreads(INT threads)
+INT getEntityTotal()
 {
-	workThreads = threads;
-}
-
-extern "C"
-INT getWorkThreads() {
-	return workThreads;
-}
-
-/*
-============================================================
-*/
-
-INT relationTotal = 0;
-INT entityTotal = 0;
-INT tripleTotal = 0;
-INT testTotal = 0;
-INT trainTotal = 0;
-INT validTotal = 0;
-
-extern "C"
-INT getEntityTotal() {
 	return entityTotal;
 }
 
+
 extern "C"
-INT getRelationTotal() {
+INT getRelationTotal()
+{
 	return relationTotal;
 }
 
+
 extern "C"
-INT getTripleTotal() {
+INT getTripleTotal()
+{
 	return tripleTotal;
 }
 
+
 extern "C"
-INT getTrainTotal() {
+INT getTrainTotal()
+{
 	return trainTotal;
 }
 
+
 extern "C"
-INT getTestTotal() {
+INT getTestTotal()
+{
 	return testTotal;
 }
 
-extern "C"
-INT getValidTotal() {
-	return validTotal;
-}
-
-
-/*
-============================================================
-*/
-
-
-INT bernFlag = 0;
-
 
 extern "C"
-void setBern(INT con)
+INT getValidTotal()
 {
-	bernFlag = con;
+	return validTotal;
 }
 #endif

@@ -1,31 +1,43 @@
 #coding:utf-8
-import numpy as np
-import tensorflow as tf
-from Model import *
+from tensorflow import (get_variable as var,
+                        reduce_sum as sum,
+                        reduce_mean as mean,
+                        maximum as max,
+                        nn)
+from tensorflow.contrib.layers import xavier_initializer as xavier
+at = nn.embedding_lookup
+from . import Model
 
 class TransH(Model):
 
+
 	def _transfer(self, e, n):
-		norm = n
-		return e - tf.reduce_sum(e * norm, 1, keep_dims = True) * norm
+		return e - sum(e * n, 1, keep_dims=True) * n
+
 
 	def _calc(self, h, t, r):
 		return abs(h + r - t)
 
+
 	def embedding_def(self):
-		#Obtaining the initial configuration of the model
-		config = self.get_config()
+
+		cE, cR, d = self.entities, self.relations, self.hiddensize
+
 		#Defining required parameters of the model, including embeddings of entities and relations, and normal vectors of planes
-		self.ent_embeddings = tf.get_variable(name = "ent_embeddings", shape = [config.entTotal, config.hidden_size], initializer = tf.contrib.layers.xavier_initializer(uniform = False))
-		self.rel_embeddings = tf.get_variable(name = "rel_embeddings", shape = [config.relTotal, config.hidden_size], initializer = tf.contrib.layers.xavier_initializer(uniform = False))
-		self.normal_vectors = tf.get_variable(name = "normal_vectors", shape = [config.relTotal, config.hidden_size], initializer = tf.contrib.layers.xavier_initializer(uniform = False))
-		self.parameter_lists = {"ent_embeddings":self.ent_embeddings, \
-								"rel_embeddings":self.rel_embeddings, \
-								"normal_vectors":self.normal_vectors}
+		self.ent_embeddings = var("ent_embeddings", [cE, d],
+				initializer=xavier(uniform=False))
+		self.rel_embeddings = var("rel_embeddings", [cR, d],
+				initializer=xavier(uniform=False))
+		self.normal_vectors = var("normal_vectors", [cR, d],
+				initializer=xavier(uniform=False))
+
+		self.parameter_lists = {
+				"ent_embeddings":self.ent_embeddings,
+				"rel_embeddings":self.rel_embeddings,
+				"normal_vectors":self.normal_vectors}
+
 
 	def loss_def(self):
-		#Obtaining the initial configuration of the model
-		config = self.get_config()
 		#To get positive triples and negative triples for training
 		#The shapes of pos_h, pos_t, pos_r are (batch_size)
 		#The shapes of neg_h, neg_t, neg_r are ((negative_ent + negative_rel) × batch_size)
@@ -52,18 +64,15 @@ class TransH(Model):
 		#The shape of _p_score is (1, batch_size, hidden_size)
 		#The shape of _n_score is (negative_ent + negative_rel, batch_size, hidden_size)
 		_p_score = self._calc(p_h, p_t, p_r)
-		_p_score = tf.reshape(_p_score, [1, -1, config.rel_size])
 		_n_score = self._calc(n_h, n_t, n_r)
-		_n_score = tf.reshape(_n_score, [config.negative_ent + config.negative_rel, -1, config.rel_size])
 		#The shape of p_score is (batch_size, 1)
 		#The shape of n_score is (batch_size, 1)
-		p_score =  tf.reduce_sum(tf.reduce_mean(_p_score, 0, keep_dims = False), 1, keep_dims = True)
-		n_score =  tf.reduce_sum(tf.reduce_mean(_n_score, 0, keep_dims = False), 1, keep_dims = True)
+		p_score =  sum(mean(_p_score, 0, keep_dims=False), 1, keep_dims=True)
+		n_score =  sum(mean(_n_score, 0, keep_dims=False), 1, keep_dims=True)
 		#Calculating loss to get what the framework will optimize
-		self.loss = tf.reduce_sum(tf.maximum(p_score - n_score + config.margin, 0))
+		self.loss = sum(max(p_score - n_score + self.margin, 0))
 
 	def predict_def(self):
-		config = self.get_config()
 		predict_h, predict_t, predict_r = self.get_predict_instance()
 		predict_h_e = tf.nn.embedding_lookup(self.ent_embeddings, predict_h)
 		predict_t_e = tf.nn.embedding_lookup(self.ent_embeddings, predict_t)
@@ -75,5 +84,11 @@ class TransH(Model):
 		self.predict = tf.reduce_sum(self._calc(h_e, t_e, r_e), 1, keep_dims = True)
 
 
-
-		
+	def __init__(self, config):
+		super().__init__(config)
+		self.entities = config.entTotal
+		self.relations = config.relTotal
+		self.margin = config.margin
+		self.hiddensize
+		self.entitysize
+		self.relationsize

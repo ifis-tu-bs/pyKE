@@ -4,92 +4,74 @@
 #	include "Triple.h"
 #	include <cstdlib>
 #	include <algorithm>
+#	include <fstream>
 
 
-extern "C" void importTrainFiles(void);
-extern "C" void importTestFiles(void);
-
-
-INT* freqRel;
-INT* freqEnt;
-INT* lefHead;
-INT* rigHead;
-INT* lefTail;
-INT* rigTail;
-INT* lefRel;
-INT* rigRel;
-REAL* left_mean;
-REAL* right_mean;
+long int* lefHead;
+long int* rigHead;
+long int* lefTail;
+long int* rigTail;
+long int* lefRel;
+long int* rigRel;
+float* meanh;
+float* meant;
 
 
 Triple* trainList;
 Triple* trainHead;
 Triple* trainTail;
 Triple* trainRel;
+Triple* testList;
+Triple* tripleList;
 
 
 extern "C"
-void importTrainFiles(void)
+void importTrainFiles(const char* inPath, long int entities, long int relations)
 {
+	relationTotal = relations;
+	entityTotal = entities;
 
-	printf("The toolkit is importing datasets.\n");
-	FILE *fin;
-	int tmp;
+	std::ifstream fin(inPath);
+	fin >> trainTotal;
+	trainList = (Triple*) calloc(trainTotal, sizeof(Triple));
+	trainHead = (Triple*) calloc(trainTotal, sizeof(Triple));
+	trainTail = (Triple*) calloc(trainTotal, sizeof(Triple));
+	trainRel = (Triple*) calloc(trainTotal, sizeof(Triple));
+	long int* freqr = (long int*) calloc(relationTotal, sizeof(long int));
+	long int* freqe = (long int*) calloc(entityTotal, sizeof(long int));
+	const auto* end = trainList + trainTotal;
+	for (auto* i = trainList; i < end; ++i)
+		fin >> i->h >> i->t >> i->r;
 
-	fin = fopen((inPath + "relation2id.txt").c_str(), "r");
-	tmp = fscanf(fin, "%ld", &relationTotal);
-	printf("The total of relations is %ld.\n", relationTotal);
-	fclose(fin);
-
-	fin = fopen((inPath + "entity2id.txt").c_str(), "r");
-	tmp = fscanf(fin, "%ld", &entityTotal);
-	printf("The total of entities is %ld.\n", entityTotal);
-	fclose(fin);
-
-	fin = fopen((inPath + "train2id.txt").c_str(), "r");
-	tmp = fscanf(fin, "%ld", &trainTotal);
-	trainList = (Triple *)calloc(trainTotal, sizeof(Triple));
-	trainHead = (Triple *)calloc(trainTotal, sizeof(Triple));
-	trainTail = (Triple *)calloc(trainTotal, sizeof(Triple));
-	trainRel = (Triple *)calloc(trainTotal, sizeof(Triple));
-	freqRel = (INT *)calloc(relationTotal, sizeof(INT));
-	freqEnt = (INT *)calloc(entityTotal, sizeof(INT));
-	for (INT i = 0; i < trainTotal; i++) {
-		tmp = fscanf(fin, "%ld", &trainList[i].h);
-		tmp = fscanf(fin, "%ld", &trainList[i].t);
-		tmp = fscanf(fin, "%ld", &trainList[i].r);
-	}
-	fclose(fin);
 	std::sort(trainList, trainList + trainTotal, Triple::cmp_hrt);
-	tmp = trainTotal; trainTotal = 1;
+	long int tmp = trainTotal; trainTotal = 1;
 	trainHead[0] = trainTail[0] = trainRel[0] = trainList[0];
-	freqEnt[trainList[0].t] += 1;
-	freqEnt[trainList[0].h] += 1;
-	freqRel[trainList[0].r] += 1;
-	for (INT i = 1; i < tmp; i++)
+	freqe[trainList[0].t] += 1;
+	freqe[trainList[0].h] += 1;
+	freqr[trainList[0].r] += 1;
+	for (long int i = 1; i < tmp; i++)
 		if (trainList[i].h != trainList[i - 1].h || trainList[i].r != trainList[i - 1].r || trainList[i].t != trainList[i - 1].t) {
 			trainHead[trainTotal] = trainTail[trainTotal] = trainRel[trainTotal] = trainList[trainTotal] = trainList[i];
 			trainTotal++;
-			freqEnt[trainList[i].t]++;
-			freqEnt[trainList[i].h]++;
-			freqRel[trainList[i].r]++;
+			freqe[trainList[i].t]++;
+			freqe[trainList[i].h]++;
+			freqr[trainList[i].r]++;
 		}
 
 	std::sort(trainHead, trainHead + trainTotal, Triple::cmp_hrt);
 	std::sort(trainTail, trainTail + trainTotal, Triple::cmp_trh);
 	std::sort(trainRel, trainRel + trainTotal, Triple::cmp_rht);
-	printf("The total of train triples is %ld.\n", trainTotal);
 
-	lefHead = (INT *)calloc(entityTotal, sizeof(INT));
-	rigHead = (INT *)calloc(entityTotal, sizeof(INT));
-	lefTail = (INT *)calloc(entityTotal, sizeof(INT));
-	rigTail = (INT *)calloc(entityTotal, sizeof(INT));
-	lefRel = (INT *)calloc(entityTotal, sizeof(INT));
-	rigRel = (INT *)calloc(entityTotal, sizeof(INT));
-	memset(rigHead, -1, sizeof(INT)*entityTotal);
-	memset(rigTail, -1, sizeof(INT)*entityTotal);
-	memset(rigRel, -1, sizeof(INT)*entityTotal);
-	for (INT i = 1; i < trainTotal; ++i)
+	lefHead = (long int *)calloc(entityTotal, sizeof(long int));
+	rigHead = (long int *)calloc(entityTotal, sizeof(long int));
+	lefTail = (long int *)calloc(entityTotal, sizeof(long int));
+	rigTail = (long int *)calloc(entityTotal, sizeof(long int));
+	lefRel = (long int *)calloc(entityTotal, sizeof(long int));
+	rigRel = (long int *)calloc(entityTotal, sizeof(long int));
+	memset(rigHead, -1, sizeof(long int)*entityTotal);
+	memset(rigTail, -1, sizeof(long int)*entityTotal);
+	memset(rigRel, -1, sizeof(long int)*entityTotal);
+	for (long int i = 1; i < trainTotal; ++i)
 	{
 		if (trainTail[i].t != trainTail[i - 1].t)
 		{
@@ -114,82 +96,73 @@ void importTrainFiles(void)
 	lefRel[trainRel[0].h] = 0;
 	rigRel[trainRel[trainTotal - 1].h] = trainTotal - 1;
 
-	left_mean = (REAL *)calloc(relationTotal,sizeof(REAL));
-	right_mean = (REAL *)calloc(relationTotal,sizeof(REAL));
-	for (INT i = 0; i < entityTotal; i++)
+	meanh = (float*)calloc(relationTotal, sizeof(float));
+	meant = (float*)calloc(relationTotal, sizeof(float));
+	for (long int i = 0; i < entityTotal; i++)
 	{
-		for (INT j = lefHead[i] + 1; j < rigHead[i]; j++)
+		for (long int j = lefHead[i] + 1; j < rigHead[i]; j++)
 			if (trainHead[j].r != trainHead[j - 1].r)
-				left_mean[trainHead[j].r] += 1.0;
+				meanh[trainHead[j].r] += 1.0;
 		if (lefHead[i] <= rigHead[i])
-			left_mean[trainHead[lefHead[i]].r] += 1.0;
-		for (INT j = lefTail[i] + 1; j < rigTail[i]; j++)
+			meanh[trainHead[lefHead[i]].r] += 1.0;
+		for (long int j = lefTail[i] + 1; j < rigTail[i]; j++)
 			if (trainTail[j].r != trainTail[j - 1].r)
-				right_mean[trainTail[j].r] += 1.0;
+				meant[trainTail[j].r] += 1.0;
 		if (lefTail[i] <= rigTail[i])
-			right_mean[trainTail[lefTail[i]].r] += 1.0;
+			meant[trainTail[lefTail[i]].r] += 1.0;
 	}
-	for (INT i = 0; i < relationTotal; ++i)
+	for (long int i = 0; i < relationTotal; ++i)
 	{
-		left_mean[i] = freqRel[i] / left_mean[i];
-		right_mean[i] = freqRel[i] / right_mean[i];
+		meanh[i] = freqr[i] / meanh[i];
+		meant[i] = freqr[i] / meant[i];
 	}
+	free(freqr);
+	free(freqe);
 }
-
-
-Triple* testList;
-Triple* tripleList;
 
 
 extern "C"
-void importTestFiles(void)
+void importTestFiles(
+		const char* testname,
+		const char* trainname,
+		const char* validname)
 {
-	INT tmp;
+	std::ifstream ftest(testname);
+	std::ifstream ftrain(trainname);
+	std::ifstream fvalid(validname);
 
-	FILE* frelation = fopen((inPath + "relation2id.txt").c_str(), "r");
-	tmp = fscanf(frelation, "%ld", &relationTotal);
-	fclose(frelation);
-
-	FILE* fentity = fopen((inPath + "entity2id.txt").c_str(), "r");
-	tmp = fscanf(fentity, "%ld", &entityTotal);
-	fclose(fentity);
-
-	FILE* ftest = fopen((inPath + "test2id.txt").c_str(), "r");
-	FILE* ftrain = fopen((inPath + "train2id.txt").c_str(), "r");
-	FILE* fvalid = fopen((inPath + "valid2id.txt").c_str(), "r");
-	tmp = fscanf(ftest, "%ld", &testTotal);
-	tmp = fscanf(ftrain, "%ld", &trainTotal);
-	tmp = fscanf(fvalid, "%ld", &validTotal);
+	ftest >> testTotal;
+	ftrain >> trainTotal;
+	fvalid >> validTotal;
 	tripleTotal = testTotal + trainTotal + validTotal;
+
 	testList = (Triple*) calloc(testTotal, sizeof(Triple));
 	tripleList = (Triple*) calloc(tripleTotal, sizeof(Triple));
 
-	for (INT i = 0; i < testTotal; i++)
+	for (long int i = 0; i < testTotal; i++)
 	{
-		tmp = fscanf(ftest, "%ld", &testList[i].h);
-		tmp = fscanf(ftest, "%ld", &testList[i].t);
-		tmp = fscanf(ftest, "%ld", &testList[i].r);
+		ftest >> testList[i].h;
+		ftest >> testList[i].t;
+		ftest >> testList[i].r;
 		tripleList[i] = testList[i];
 	}
-	fclose(ftest);
 
-	for (INT i = 0; i < trainTotal; i++)
+	for (long int i = testTotal; i < trainTotal + testTotal; i++)
 	{
-		tmp = fscanf(ftrain, "%ld", &tripleList[i + testTotal].h);
-		tmp = fscanf(ftrain, "%ld", &tripleList[i + testTotal].t);
-		tmp = fscanf(ftrain, "%ld", &tripleList[i + testTotal].r);
+		ftrain >> tripleList[i].h;
+		ftrain >> tripleList[i].t;
+		ftrain >> tripleList[i].r;
 	}
-	fclose(ftrain);
 
-	for (INT i = 0; i < validTotal; i++)
+	for (long int i = testTotal + trainTotal; i < tripleTotal; i++)
 	{
-		tmp = fscanf(fvalid, "%ld", &tripleList[i + testTotal + trainTotal].h);
-		tmp = fscanf(fvalid, "%ld", &tripleList[i + testTotal + trainTotal].t);
-		tmp = fscanf(fvalid, "%ld", &tripleList[i + testTotal + trainTotal].r);
+		fvalid >> tripleList[i].h;
+		fvalid >> tripleList[i].t;
+		fvalid >> tripleList[i].r;
 	}
-	fclose(fvalid);
 
 	std::sort(tripleList, tripleList + tripleTotal, Triple::cmp_hrt);
-	printf("The total of test triples is %ld.\n", testTotal);
 }
+
+
 #endif // READER_H

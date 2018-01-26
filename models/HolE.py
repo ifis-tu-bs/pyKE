@@ -1,7 +1,7 @@
 #coding:utf-8
 import numpy as np
 import tensorflow as tf
-from Model import *
+from . import Model
 
 class HolE(Model):
 

@@ -3,22 +3,32 @@
 #include "Setting.h"
 #include <cstdlib>
 
-unsigned long long *next_random;
+
+unsigned long long int* next_random;
+extern long int workThreads;
+
 
 extern "C"
-void randReset() {
-	next_random = (unsigned long long *)calloc(workThreads, sizeof(unsigned long long));
-	for (INT i = 0; i < workThreads; i++)
-		next_random[i] = rand();
+void randReset(long int seed)
+{
+	next_random = (unsigned long long*) calloc(workThreads, sizeof(unsigned long long));
+	for (long int i = 0; i < workThreads; i++)
+		next_random[i] = seed;
 }
 
-unsigned long long randd(INT id) {
-	next_random[id] = next_random[id] * (unsigned long long)25214903917 + 11;
-	return next_random[id];
+
+unsigned long long int randd(long int id)
+{
+	auto& r = next_random[id];
+	r *= (unsigned long long) 25214903917;
+	r += 11;
+	return r;
 }
 
-INT rand_max(INT id, INT x) {
-	INT res = randd(id) % x;
+
+long int rand_max(long int id, long int x)
+{
+	long int res = randd(id) % x;
 	while (res < 0)
 		res += x;
 	return res;
