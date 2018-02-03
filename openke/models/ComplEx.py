@@ -1,10 +1,11 @@
 #coding:utf-8
-import numpy as np
 import tensorflow as tf
 from tensorflow.contrib.layers import xavier_initializer
 from . import Model
 
+
 class ComplEx(Model):
+
 
 	def embedding_def(self):
 		d, cE, cR = self.hiddensize, self.entities, self.relations
@@ -18,8 +19,10 @@ class ComplEx(Model):
 				"rel_re_embeddings":self.rel1_embeddings,
 				"rel_im_embeddings":self.rel2_embeddings}
 
+
 	def _calc(self, e1_h, e2_h, e1_t, e2_t, r1, r2):
 		return e1_h * e1_t * r1 + e2_h * e2_t * r1 + e1_h * e2_t * r2 - e2_h * e1_t * r2
+
 
 	def loss_def(self, _lambda=.0):
 		#Obtaining the initial configuration of the model
@@ -42,6 +45,7 @@ class ComplEx(Model):
 		#Calculating loss to get what the framework will optimize
 		self.loss =  loss_func + _lambda * regul_func
 
+
 	def predict_def(self):
 		h, t, r = self.get_predict_instance()
 		h0 = tf.nn.embedding_lookup(self.ent1_embeddings, h)
@@ -52,9 +56,10 @@ class ComplEx(Model):
 		r1 = tf.nn.embedding_lookup(self.rel2_embeddings, r)
 		self.predict = -tf.reduce_sum(self._calc(h0, h1, t0, t1, r0, r1), 1, keep_dims=True)
 
-	def __init__(self, config):
-		super().__init__(config)
-		self.entities = config.entTotal
-		self.relations = config.relTotal
-		self._lambda = config.lmbda
-		self.hiddensize = config.hidden_size
+
+	def __init__(self, **config):
+		self.entities = config['entTotal']
+		self.relations = config['relTotal']
+		self._lambda = config['lmbda']
+		self.hiddensize = config['hidden_size']
+		super().__init__(**config)

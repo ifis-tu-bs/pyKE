@@ -25,11 +25,19 @@ Triple* testList;
 Triple* tripleList;
 
 
+typedef int (*logCall)(int);
+
+
 extern "C"
-void importTrainFiles(const char* inPath, long int entities, long int relations)
+void importTrainFiles(
+		const char* inPath,
+		long int entities,
+		long int relations,
+		logCall log)
 {
 	relationTotal = relations;
 	entityTotal = entities;
+	log((int)relations*entities);
 
 	std::ifstream fin(inPath);
 	fin >> trainTotal;
@@ -37,30 +45,27 @@ void importTrainFiles(const char* inPath, long int entities, long int relations)
 	trainHead = (Triple*) calloc(trainTotal, sizeof(Triple));
 	trainTail = (Triple*) calloc(trainTotal, sizeof(Triple));
 	trainRel = (Triple*) calloc(trainTotal, sizeof(Triple));
+	log((int)trainTotal);
+
 	long int* freqr = (long int*) calloc(relationTotal, sizeof(long int));
 	long int* freqe = (long int*) calloc(entityTotal, sizeof(long int));
 	const auto* end = trainList + trainTotal;
 	for (auto* i = trainList; i < end; ++i)
+	{
 		fin >> i->h >> i->t >> i->r;
+		++freqe[i->t];
+		++freqe[i->h];
+		++freqr[i->r];
+	}
+	log(300);
 
-	std::sort(trainList, trainList + trainTotal, Triple::cmp_hrt);
-	long int tmp = trainTotal; trainTotal = 1;
-	trainHead[0] = trainTail[0] = trainRel[0] = trainList[0];
-	freqe[trainList[0].t] += 1;
-	freqe[trainList[0].h] += 1;
-	freqr[trainList[0].r] += 1;
-	for (long int i = 1; i < tmp; i++)
-		if (trainList[i].h != trainList[i - 1].h || trainList[i].r != trainList[i - 1].r || trainList[i].t != trainList[i - 1].t) {
-			trainHead[trainTotal] = trainTail[trainTotal] = trainRel[trainTotal] = trainList[trainTotal] = trainList[i];
-			trainTotal++;
-			freqe[trainList[i].t]++;
-			freqe[trainList[i].h]++;
-			freqr[trainList[i].r]++;
-		}
-
+	memcpy(trainHead, trainList, sizeof(Triple)*trainTotal);
+	memcpy(trainTail, trainList, sizeof(Triple)*trainTotal);
+	memcpy(trainRel, trainList, sizeof(Triple)*trainTotal);
 	std::sort(trainHead, trainHead + trainTotal, Triple::cmp_hrt);
 	std::sort(trainTail, trainTail + trainTotal, Triple::cmp_trh);
 	std::sort(trainRel, trainRel + trainTotal, Triple::cmp_rht);
+	log(500);
 
 	lefHead = (long int *)calloc(entityTotal, sizeof(long int));
 	rigHead = (long int *)calloc(entityTotal, sizeof(long int));
@@ -68,6 +73,8 @@ void importTrainFiles(const char* inPath, long int entities, long int relations)
 	rigTail = (long int *)calloc(entityTotal, sizeof(long int));
 	lefRel = (long int *)calloc(entityTotal, sizeof(long int));
 	rigRel = (long int *)calloc(entityTotal, sizeof(long int));
+	log(600);
+
 	memset(rigHead, -1, sizeof(long int)*entityTotal);
 	memset(rigTail, -1, sizeof(long int)*entityTotal);
 	memset(rigRel, -1, sizeof(long int)*entityTotal);
@@ -95,6 +102,7 @@ void importTrainFiles(const char* inPath, long int entities, long int relations)
 	rigTail[trainTail[trainTotal - 1].t] = trainTotal - 1;
 	lefRel[trainRel[0].h] = 0;
 	rigRel[trainRel[trainTotal - 1].h] = trainTotal - 1;
+	log(700);
 
 	meanh = (float*)calloc(relationTotal, sizeof(float));
 	meant = (float*)calloc(relationTotal, sizeof(float));
@@ -118,6 +126,7 @@ void importTrainFiles(const char* inPath, long int entities, long int relations)
 	}
 	free(freqr);
 	free(freqe);
+	log(800);
 }
 
 

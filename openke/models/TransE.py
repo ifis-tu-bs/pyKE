@@ -14,9 +14,8 @@ class TransE(Model):
 
 	def embedding_def(self):
 
-		d, dE, dR = self.hiddensize, self.embeddings, self.relations
+		d, dE, dR = self.hiddensize, self.entities, self.relations
 
-		#Defining required parameters of the model, including embeddings of entities and relations
 		self.ent_embeddings = var("ent_embeddings", [dE, d],
 				initializer=xavier(uniform = False))
 		self.rel_embeddings = var("rel_embeddings", [dR, d],
@@ -45,7 +44,7 @@ class TransE(Model):
 		sn = sum(mean(abs(nh - nt + nr), 1, keep_dims=False), 1, keep_dims=True)
 
 		#Calculating loss to get what the framework will optimize
-		self.loss = sum(max(-self.margin, p_score - n_score))
+		self.loss = sum(max(sp - sn + self.margin, 0))
 
 
 	def predict_def(self):
@@ -59,10 +58,9 @@ class TransE(Model):
 		self.predict = mean(abs(eh - et + er), 1, keep_dims=False)
 
 
-	def __init__(self, config):
-		super().__init__(config)
-
-		self.entities = config.entTotal
-		self.relations = config.relTotal
-		self.hiddensize = config.hidden_size
-		self.margin = config.margin
+	def __init__(self, **config):
+		self.entities = config['entTotal']
+		self.relations = config['relTotal']
+		self.hiddensize = config['hidden_size']
+		self.margin = config['margin']
+		super().__init__(**config)

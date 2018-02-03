@@ -7,10 +7,10 @@ from numpy import zeros, int64, float32
 import os
 import time
 import datetime
-from ctypes import c_void_p, c_int64, c_char_p, cdll
+from ctypes import c_void_p, c_int64, c_char_p, cdll, CFUNCTYPE, c_int
 from json import dumps
 def c_str(s):
-	return c_char_p(bytes(s))
+	return c_char_p(bytes(s, 'utf-8'))
 
 
 
@@ -25,30 +25,26 @@ class Config(object):
 		self._l.getTailBatch.argtypes = [c_void_p, c_void_p, c_void_p]
 		self._l.testHead.argtypes = [c_void_p]
 		self._l.testTail.argtypes = [c_void_p]
-		self._l.importTrainFiles.argtypes = [c_void_p, c_int64, c_int64]
+		self.logcall = CFUNCTYPE(c_int, c_int)
+		self._l.importTrainFiles.argtypes = [c_void_p, c_int64, c_int64, self.logcall]
 		self._l.importTestFiles.argtypes = [c_void_p, c_void_p, c_void_p]
 		self._l.randReset.argtypes = [c_int64]
-		self.hidden_size = 100
-		self.ent_size = self.hidden_size
-		self.rel_size = self.hidden_size
-		self.train_times = 0
-		self.margin = 1.0
-		self.nbatches = 100
-		self.negative_ent = 1
-		self.negative_rel = 0
-		self.lmbda = 0.000
 		self.export_filename = None
 		self.import_filename = None
 		self.export_steps = 0
 
 
-	def init(self, filename, entities, relations, seed=1):
+	def init(self, filename, entities, relations, batch_count=1,
+			negative_entities=0, negative_relations=0, seed=1):
+		self.negative_ent, self.negative_rel = negative_entities, negative_relations
 		self._m = None
 		self._l.randReset(seed)
 		self.entTotal, self.relTotal = entities, relations
-		self._l.importTrainFiles(c_str(filename), entities, relations)
+		self._l.importTrainFiles(c_str(filename), entities, relations,
+				self.logcall(lambda x: print(x) or 0))
 		self.trainTotal = self._l.getTrainTotal()
-		self.batch_size = self.trainTotal / self.nbatches
+		self.nbatches = batch_count
+		self.batch_size = self.trainTotal // batch_count
 
 		self.batch_seq_size = self.batch_size * (1 + self.negative_ent + self.negative_rel)
 		self.batch_h = zeros(self.batch_seq_size, dtype=int64)
@@ -69,56 +65,6 @@ class Config(object):
 		self.test_h_addr = self.test_h.__array_interface__['data'][0]
 		self.test_t_addr = self.test_t.__array_interface__['data'][0]
 		self.test_r_addr = self.test_r.__array_interface__['data'][0]
-
-
-	def get_ent_total(self):
-		return self.entTotal
-
-
-	def get_rel_total(self):
-		return self.relTotal
-
-
-	def set_lmbda(self, lmbda):
-		self.lmbda = lmbda
-
-
-	def set_dimension(self, dim):
-		self.hidden_size = dim
-		self.ent_size = dim
-		self.rel_size = dim
-
-
-	def set_ent_dimension(self, dim):
-		self.ent_size = dim
-
-
-	def set_rel_dimension(self, dim):
-		self.rel_size = dim
-
-
-	def set_train_times(self, times):
-		self.train_times = times
-
-
-	def set_nbatches(self, nbatches):
-		self.nbatches = nbatches
-
-
-	def set_margin(self, margin):
-		self.margin = margin
-
-
-	def set_work_threads(self, threads):
-		self.workThreads = threads
-
-
-	def set_ent_neg_rate(self, rate):
-		self.negative_ent = rate
-
-
-	def set_rel_neg_rate(self, rate):
-		self.negative_rel = rate
 
 
 	def set_export(self, graphname, parametername, steps=0):
@@ -193,21 +139,29 @@ class Config(object):
 			self.set_parameters_by_name(i, lists[i])
 
 
-	def set_model(self, model, optimizer):
+	def set_model(self, model, optimizer, **kwargs):
+		if 'batch_size' not in kwargs:
+			kwargs['batch_size'] = self.batch_size
+		if 'batch_seq_size' not in kwargs:
+			kwargs['batch_seq_size'] = self.batch_seq_size
+		if 'negative_ent' not in kwargs:
+			kwargs['negative_ent'] = self.negative_ent
+		if 'negative_rel' not in kwargs:
+			kwargs['negative_rel'] = self.negative_rel
 		self._g = Graph()
 		with self._g.as_default():
 			self._s = Session()
 			with self._s.as_default():
-				initializer = xavier_initializer(uniform = True)
+				initializer = xavier_initializer(uniform=True)
 				with variable_scope("model", reuse=None, initializer=initializer):
-					self._m = model(config=self)
+					self._m = model(**kwargs)
 					grads_and_vars = optimizer.compute_gradients(self._m.loss)
 					self.train_op = optimizer.apply_gradients(grads_and_vars)
 				self.saver = Saver()
 				self._s.run(initialize_all_variables())
 
 
-	def train(self, bern=True, log=None, workers=1):
+	def train(self, times=1, bern=True, log=None, workers=1):
 		feed_dict = {
 			self._m.batch_h: self.batch_h,
 			self._m.batch_t: self.batch_t,
@@ -218,18 +172,18 @@ class Config(object):
 		with self._g.as_default():
 			with self._s.as_default():
 				self.parametername and self._restore(self.parametername)
-				for times in range(self.train_times):
-					losssum = 0.0
+				for t in range(times):
+					loss = 0.0
 					for batch in range(self.nbatches):
 						sampling(self.batch_h_addr, self.batch_t_addr,
 								self.batch_r_addr, self.batch_y_addr, self.batch_size,
 								self.negative_ent, self.negative_rel, workers)
-						_, loss = self._s.run([self.train_op, self._m.loss], feed_dict)[1]
-						losssum += loss
-					log and log(times, losssum)
-					if self.export_steps and times % self.export_steps == 0:
+						loss += self._s.run([self.train_op, self._m.loss], feed_dict)[1]
+					log and log(t, loss)
+					if self.export_steps and t % self.export_steps == 0:
 						self.graphname and self._save(self.graphname)
 				self.graphname and self._save(self.graphname)
+				print(self.batch_h, self.batch_t, self.batch_r, self.batch_y)
 
 
 	def test(self, log=None):
@@ -244,7 +198,7 @@ class Config(object):
 			with self._s.as_default():
 				self.parametername and self._restore(self.parametername)
 				total = self._l.getTestTotal()
-				for times in range(total):
+				for t in range(total):
 					self._l.getHeadBatch(self.test_h_addr, self.test_t_addr, self.test_r_addr)
 					res = step(self.test_h, self.test_t, self.test_r)
 					self._l.testHead(res.__array_interface__['data'][0])
@@ -252,5 +206,5 @@ class Config(object):
 					self._l.getTailBatch(self.test_h_addr, self.test_t_addr, self.test_r_addr)
 					res = step(self.test_h, self.test_t, self.test_r)
 					self._l.testTail(res.__array_interface__['data'][0])
-					log and log(times)
+					log and log(t, total)
 				self._l.test()
