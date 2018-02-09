@@ -3,26 +3,33 @@
 #	include "Setting.h"
 #	include "Triple.h"
 #	include <cstdlib>
-#	include <algorithm>
-#	include <fstream>
+#	include <vector> // std::vector
+#	include <algorithm> // std::sort
+#	include <fstream> // std::ifstream
 
 
-long int* lefHead;
-long int* rigHead;
-long int* lefTail;
-long int* rigTail;
-long int* lefRel;
-long int* rigRel;
-float* meanh;
-float* meant;
+// reordered trainList for lookup
+// with precompiled lower and upper bounds for each element
 
+// used when searching heads for (tail,rel) questions
+// primary key is the tail
+std::vector<Triple> trainHead;
+std::vector<std::vector<Triple>::const_iterator> lefHead;
+std::vector<std::vector<Triple>::const_iterator> rigHead;
+// used for tail search on (head,rel) questions
+// primary key is the head
+std::vector<Triple> trainTail;
+std::vector<std::vector<Triple>::const_iterator> lefTail;
+std::vector<std::vector<Triple>::const_iterator> rigTail;
+// used for rel search on (head,tail) questions
+// primary key is the head
+std::vector<Triple> trainRel;
+std::vector<std::vector<Triple>::const_iterator> lefRel;
+std::vector<std::vector<Triple>::const_iterator> rigRel;
 
-Triple* trainList;
-Triple* trainHead;
-Triple* trainTail;
-Triple* trainRel;
-Triple* testList;
-Triple* tripleList;
+// mean entity frequency for each relation
+std::vector<float> meanh;
+std::vector<float> meant;
 
 
 typedef int (*logCall)(int);
@@ -31,146 +38,115 @@ typedef int (*logCall)(int);
 extern "C"
 void importTrainFiles(
 		const char* inPath,
-		long int entities,
-		long int relations,
+		ent_id entities,
+		rel_id relations,
 		logCall log)
+try
 {
-	relationTotal = relations;
 	entityTotal = entities;
-	log((int)relations*entities);
+	relationTotal = relations;
 
-	std::ifstream fin(inPath);
-	fin >> trainTotal;
-	trainList = (Triple*) calloc(trainTotal, sizeof(Triple));
-	trainHead = (Triple*) calloc(trainTotal, sizeof(Triple));
-	trainTail = (Triple*) calloc(trainTotal, sizeof(Triple));
-	trainRel = (Triple*) calloc(trainTotal, sizeof(Triple));
-	log((int)trainTotal);
-
-	long int* freqr = (long int*) calloc(relationTotal, sizeof(long int));
-	long int* freqe = (long int*) calloc(entityTotal, sizeof(long int));
-	const auto* end = trainList + trainTotal;
-	for (auto* i = trainList; i < end; ++i)
+	std::vector<long int> freqr(relations);
+	std::vector<long int> freqe(entities);
 	{
-		fin >> i->h >> i->t >> i->r;
-		++freqe[i->t];
-		++freqe[i->h];
-		++freqr[i->r];
-	}
-	log(300);
-
-	memcpy(trainHead, trainList, sizeof(Triple)*trainTotal);
-	memcpy(trainTail, trainList, sizeof(Triple)*trainTotal);
-	memcpy(trainRel, trainList, sizeof(Triple)*trainTotal);
-	std::sort(trainHead, trainHead + trainTotal, Triple::cmp_hrt);
-	std::sort(trainTail, trainTail + trainTotal, Triple::cmp_trh);
-	std::sort(trainRel, trainRel + trainTotal, Triple::cmp_rht);
-	log(500);
-
-	lefHead = (long int *)calloc(entityTotal, sizeof(long int));
-	rigHead = (long int *)calloc(entityTotal, sizeof(long int));
-	lefTail = (long int *)calloc(entityTotal, sizeof(long int));
-	rigTail = (long int *)calloc(entityTotal, sizeof(long int));
-	lefRel = (long int *)calloc(entityTotal, sizeof(long int));
-	rigRel = (long int *)calloc(entityTotal, sizeof(long int));
-	log(600);
-
-	memset(rigHead, -1, sizeof(long int)*entityTotal);
-	memset(rigTail, -1, sizeof(long int)*entityTotal);
-	memset(rigRel, -1, sizeof(long int)*entityTotal);
-	for (long int i = 1; i < trainTotal; ++i)
-	{
-		if (trainTail[i].t != trainTail[i - 1].t)
+		std::ifstream fin(inPath);
+		size_t trainTotal;
+		fin >> trainTotal;
+		trainList.resize(trainTotal);
+		for (auto& i: trainList)
 		{
-			rigTail[trainTail[i - 1].t] = i - 1;
-			lefTail[trainTail[i].t] = i;
-		}
-		if (trainHead[i].h != trainHead[i - 1].h)
-		{
-			rigHead[trainHead[i - 1].h] = i - 1;
-			lefHead[trainHead[i].h] = i;
-		}
-		if (trainRel[i].h != trainRel[i - 1].h)
-		{
-			rigRel[trainRel[i - 1].h] = i - 1;
-			lefRel[trainRel[i].h] = i;
+			fin >> i.h >> i.t >> i.r;
+			++freqe.at(i.t);
+			++freqe.at(i.h);
+			++freqr.at(i.r);
 		}
 	}
-	lefHead[trainHead[0].h] = 0;
-	rigHead[trainHead[trainTotal - 1].h] = trainTotal - 1;
-	lefTail[trainTail[0].t] = 0;
-	rigTail[trainTail[trainTotal - 1].t] = trainTotal - 1;
-	lefRel[trainRel[0].h] = 0;
-	rigRel[trainRel[trainTotal - 1].h] = trainTotal - 1;
-	log(700);
 
-	meanh = (float*)calloc(relationTotal, sizeof(float));
-	meant = (float*)calloc(relationTotal, sizeof(float));
-	for (long int i = 0; i < entityTotal; i++)
+	trainRel = trainTail = trainHead = trainList;
+	std::sort(trainHead.begin(), trainHead.end(), Triple::cmp_trh);
+	std::sort(trainTail.begin(), trainTail.end(), Triple::cmp_hrt);
+	std::sort(trainRel.begin(), trainRel.end(), Triple::cmp_htr);
+
+	lefHead.assign(entities, trainHead.cbegin());
+	rigHead.assign(entities, trainHead.cbegin());
 	{
-		for (long int j = lefHead[i] + 1; j < rigHead[i]; j++)
-			if (trainHead[j].r != trainHead[j - 1].r)
-				meanh[trainHead[j].r] += 1.0;
-		if (lefHead[i] <= rigHead[i])
-			meanh[trainHead[lefHead[i]].r] += 1.0;
-		for (long int j = lefTail[i] + 1; j < rigTail[i]; j++)
-			if (trainTail[j].r != trainTail[j - 1].r)
-				meant[trainTail[j].r] += 1.0;
-		if (lefTail[i] <= rigTail[i])
-			meant[trainTail[lefTail[i]].r] += 1.0;
+		const auto end = trainHead.cend();
+		auto j = trainHead.cbegin();
+		for (auto i = j + 1; i != end; j = i++)
+		{
+			if (i->t == j->t)
+				continue;
+			rigHead.at(j->t) = j;
+			lefHead.at(i->t) = i;
+		}
 	}
-	for (long int i = 0; i < relationTotal; ++i)
+	lefHead.at(trainHead.front().t) = trainHead.cbegin();
+	rigHead.at(trainHead.back().t) = trainHead.cend();
+
+	lefTail.assign(entities, trainTail.cbegin());
+	rigTail.assign(entities, trainTail.cbegin());
 	{
-		meanh[i] = freqr[i] / meanh[i];
-		meant[i] = freqr[i] / meant[i];
+		const auto end = trainTail.cend();
+		auto j = trainTail.cbegin();
+		for (auto i = j + 1; i != end; j = i++)
+		{
+			if (i->h == j->h)
+				continue;
+			rigTail.at(j->h) = j;
+			lefTail.at(i->h) = i;
+		}
 	}
-	free(freqr);
-	free(freqe);
-	log(800);
+	lefTail.at(trainTail.front().h) = trainTail.cbegin();
+	rigTail.at(trainTail.back().h) = trainTail.cend();
+
+	lefRel.assign(entities, trainRel.cbegin());
+	rigRel.assign(entities, trainRel.cbegin());
+	{
+		const auto end = trainRel.cend();
+		auto j = trainRel.cbegin();
+		for (auto i = j + 1; i != end; j = i++)
+		{
+			if (i->h == j->h)
+				continue;
+			rigRel.at(j->h) = j;
+			lefRel.at(i->h) = i;
+		}
+	}
+	lefRel.at(trainRel.front().h) = trainRel.cbegin();
+	rigRel.at(trainRel.back().h) = trainRel.cend();
+
+	meanh.assign(relations, 0.);
+	for (ent_id i = 0; i < entities; ++i)
+	{
+		const auto lower = lefHead[i];
+		const auto upper = rigHead[i];
+		if (lower >= upper)
+			continue;
+		for (auto j = lower + 1; j != upper; ++j)
+			if (j->r != (j - 1)->r)
+				meanh.at(j->r) += 1.;
+	}
+	for (rel_id i = 0; i < relations; ++i)
+		meanh[i] = meanh[i] > .5 ? freqr[i] / meanh[i] : 0;
+
+	meant.assign(relations, 0.);
+	for (ent_id i = 0; i < entities; ++i)
+	{
+		const auto lower = lefTail[i];
+		const auto upper = rigTail[i];
+		if (lower >= upper)
+			continue;
+		for (auto j = lower + 1; j != upper; ++j)
+			if (j->r != (j - 1)->r)
+				meant.at(j->r) += 1.;
+	}
+
+	for (rel_id i = 0; i < relations; ++i)
+		meant[i] = meant[i] > .5 ? freqr[i] / meant[i] : 0;
 }
-
-
-extern "C"
-void importTestFiles(
-		const char* testname,
-		const char* trainname,
-		const char* validname)
+catch (std::out_of_range& e)
 {
-	std::ifstream ftest(testname);
-	std::ifstream ftrain(trainname);
-	std::ifstream fvalid(validname);
-
-	ftest >> testTotal;
-	ftrain >> trainTotal;
-	fvalid >> validTotal;
-	tripleTotal = testTotal + trainTotal + validTotal;
-
-	testList = (Triple*) calloc(testTotal, sizeof(Triple));
-	tripleList = (Triple*) calloc(tripleTotal, sizeof(Triple));
-
-	for (long int i = 0; i < testTotal; i++)
-	{
-		ftest >> testList[i].h;
-		ftest >> testList[i].t;
-		ftest >> testList[i].r;
-		tripleList[i] = testList[i];
-	}
-
-	for (long int i = testTotal; i < trainTotal + testTotal; i++)
-	{
-		ftrain >> tripleList[i].h;
-		ftrain >> tripleList[i].t;
-		ftrain >> tripleList[i].r;
-	}
-
-	for (long int i = testTotal + trainTotal; i < tripleTotal; i++)
-	{
-		fvalid >> tripleList[i].h;
-		fvalid >> tripleList[i].t;
-		fvalid >> tripleList[i].r;
-	}
-
-	std::sort(tripleList, tripleList + tripleTotal, Triple::cmp_hrt);
+	log(0);
 }
 
 

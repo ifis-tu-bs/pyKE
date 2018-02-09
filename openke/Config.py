@@ -1,9 +1,9 @@
 #coding:utf-8
-from tensorflow import Session, Graph, initialize_all_variables, variable_scope
+from tensorflow import Session, Graph, global_variables_initializer, variable_scope
 from tensorflow.contrib.layers import xavier_initializer
 import tensorflow as tf
 Saver = tf.train.Saver
-from numpy import zeros, int64, float32
+from numpy import zeros, int64, float32, bool_
 import os
 import time
 import datetime
@@ -11,7 +11,8 @@ from ctypes import c_void_p, c_int64, c_char_p, cdll, CFUNCTYPE, c_int
 from json import dumps
 def c_str(s):
 	return c_char_p(bytes(s, 'utf-8'))
-
+def c_array(a):
+	return a.__array_interface__['data'][0]
 
 
 class Config(object):
@@ -21,24 +22,19 @@ class Config(object):
 		self._l = cdll.LoadLibrary(library)
 		self._l.sampling.argtypes = [c_void_p, c_void_p, c_void_p, c_void_p, c_int64, c_int64, c_int64, c_int64]
 		self._l.bernSampling.argtypes = self._l.sampling.argtypes
-		self._l.getHeadBatch.argtypes = [c_void_p, c_void_p, c_void_p]
-		self._l.getTailBatch.argtypes = [c_void_p, c_void_p, c_void_p]
-		self._l.testHead.argtypes = [c_void_p]
-		self._l.testTail.argtypes = [c_void_p]
-		self.logcall = CFUNCTYPE(c_int, c_int)
+		self._l.query_head.argtypes = [c_void_p, c_int64, c_int64]
+		self._l.query_tail.argtypes = [c_int64, c_void_p, c_int64]
+		self._l.query_rel.argtypes = [c_int64, c_int64, c_void_p]
+		self.logcall = CFUNCTYPE(c_int, c_char_p)
 		self._l.importTrainFiles.argtypes = [c_void_p, c_int64, c_int64, self.logcall]
-		self._l.importTestFiles.argtypes = [c_void_p, c_void_p, c_void_p]
-		self._l.randReset.argtypes = [c_int64]
-		self.export_filename = None
-		self.import_filename = None
+		self._l.randReset.argtypes = [c_int64, c_int64]
 		self.export_steps = 0
 
 
 	def init(self, filename, entities, relations, batch_count=1,
-			negative_entities=0, negative_relations=0, seed=1):
+			negative_entities=0, negative_relations=0):
 		self.negative_ent, self.negative_rel = negative_entities, negative_relations
 		self._m = None
-		self._l.randReset(seed)
 		self.entTotal, self.relTotal = entities, relations
 		self._l.importTrainFiles(c_str(filename), entities, relations,
 				self.logcall(lambda x: print(x) or 0))
@@ -51,20 +47,10 @@ class Config(object):
 		self.batch_t = zeros(self.batch_seq_size, dtype=int64)
 		self.batch_r = zeros(self.batch_seq_size, dtype=int64)
 		self.batch_y = zeros(self.batch_seq_size, dtype=float32)
-		self.batch_h_addr = self.batch_h.__array_interface__['data'][0]
-		self.batch_t_addr = self.batch_t.__array_interface__['data'][0]
-		self.batch_r_addr = self.batch_r.__array_interface__['data'][0]
-		self.batch_y_addr = self.batch_y.__array_interface__['data'][0]
-
-
-	def inittest(self, testname, trainname, validname):
-		self._l.importTestFiles(c_str(testname), c_str(trainname), c_str(validname))
-		self.test_h = zeros(self.entTotal, dtype=int64)
-		self.test_t = zeros(self.entTotal, dtype=int64)
-		self.test_r = zeros(self.entTotal, dtype=int64)
-		self.test_h_addr = self.test_h.__array_interface__['data'][0]
-		self.test_t_addr = self.test_t.__array_interface__['data'][0]
-		self.test_r_addr = self.test_r.__array_interface__['data'][0]
+		self.batch_h_addr = c_array(self.batch_h)
+		self.batch_t_addr = c_array(self.batch_t)
+		self.batch_r_addr = c_array(self.batch_r)
+		self.batch_y_addr = c_array(self.batch_y)
 
 
 	def set_export(self, graphname, parametername, steps=0):
@@ -158,16 +144,17 @@ class Config(object):
 					grads_and_vars = optimizer.compute_gradients(self._m.loss)
 					self.train_op = optimizer.apply_gradients(grads_and_vars)
 				self.saver = Saver()
-				self._s.run(initialize_all_variables())
+				self._s.run(global_variables_initializer())
 
 
-	def train(self, times=1, bern=True, log=None, workers=1):
+	def train(self, times=1, bern=True, log=None, workers=1, seed=1):
 		feed_dict = {
 			self._m.batch_h: self.batch_h,
 			self._m.batch_t: self.batch_t,
 			self._m.batch_r: self.batch_r,
 			self._m.batch_y: self.batch_y
 		}
+		self._l.randReset(workers, seed)
 		sampling = self._l.bernSampling if bern else self._l.sampling
 		with self._g.as_default():
 			with self._s.as_default():
@@ -183,28 +170,38 @@ class Config(object):
 					if self.export_steps and t % self.export_steps == 0:
 						self.graphname and self._save(self.graphname)
 				self.graphname and self._save(self.graphname)
-				print(self.batch_h, self.batch_t, self.batch_r, self.batch_y)
 
 
-	def test(self, log=None):
-		def step(h, t, r):
-			feed_dict = {
+	def predict(self, h, t, r):
+		feed_dict = {
 				self._m.predict_h: h,
 				self._m.predict_t: t,
-				self._m.predict_r: r,
-			}
-			return self._s.run(self._m.predict, feed_dict)
+				self._m.predict_r: r}
 		with self._g.as_default():
 			with self._s.as_default():
-				self.parametername and self._restore(self.parametername)
-				total = self._l.getTestTotal()
-				for t in range(total):
-					self._l.getHeadBatch(self.test_h_addr, self.test_t_addr, self.test_r_addr)
-					res = step(self.test_h, self.test_t, self.test_r)
-					self._l.testHead(res.__array_interface__['data'][0])
+				return self._s.run(self._m.predict, feed_dict)
 
-					self._l.getTailBatch(self.test_h_addr, self.test_t_addr, self.test_r_addr)
-					res = step(self.test_h, self.test_t, self.test_r)
-					self._l.testTail(res.__array_interface__['data'][0])
-					log and log(t, total)
-				self._l.test()
+
+	def query(self, head, tail, relation):
+		if head == None:
+			if tail == None:
+				if relation == None:
+					raise NotImplementedError('querying everything')
+				raise NotImplementedError('querying full relation')
+			if relation == None:
+				raise NotImplementedError('querying full head')
+			tails = zeros(self.entTotal, bool_)
+			self._l.query_head(head, c_array(tails), relation)
+			return tails
+		if tail == None:
+			if relation == None:
+				raise NotImplementedError('querying full tail')
+			heads = zeros(self.entTotal, bool_)
+			self._l.query_tail(c_array(heads), tail, relation)
+			return heads
+		if relation == None:
+			relations = zeros(self.relTotal, bool_)
+			self._l.query_rel(head, tail, c_array(relations))
+			return relations
+		raise NotImplementedError('querying single facts')
+

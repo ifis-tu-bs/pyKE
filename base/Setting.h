@@ -1,85 +1,67 @@
 #ifndef SETTING_H
 #define SETTING_H
-#define INT long
-#define REAL float
-#include <cstring>
-#include <cstdio>
-#include <string>
-
-
-std::string inPath = "../data/FB15K/";
-std::string outPath = "../data/FB15K/";
-INT workThreads = 1;
-INT entityTotal = 0;
-INT relationTotal = 0;
-INT tripleTotal = 0;
-INT trainTotal = 0;
-INT testTotal = 0;
-INT validTotal = 0;
-
+#include "Triple.h"
+#include <vector> // std::vector
 
 extern "C"
-void setInPath(
-		char* path)
-{
-	INT len = strlen(path);
-	inPath = "";
-	for (INT i = 0; i < len; i++)
-		inPath = inPath + path[i];
-	printf("Input Files Path : %s\n", inPath.c_str());
-}
-
+uint64_t getEntityTotal();
 
 extern "C"
-void setOutPath(
-		char* path)
-{
-	INT len = strlen(path);
-	outPath = "";
-	for (INT i = 0; i < len; i++)
-		outPath = outPath + path[i];
-	printf("Output Files Path : %s\n", outPath.c_str());
-}
-
+uint64_t getRelationTotal();
 
 extern "C"
-INT getEntityTotal()
+uint64_t getTripleTotal();
+
+extern "C"
+uint64_t getTrainTotal();
+
+extern "C"
+uint64_t getTestTotal();
+
+
+uint64_t entityTotal = 0;
+uint64_t relationTotal = 0;
+std::vector<Triple> trainList;
+std::vector<Triple> testList;
+
+extern "C"
+uint64_t getEntityTotal()
 {
 	return entityTotal;
 }
 
 
 extern "C"
-INT getRelationTotal()
+uint64_t getRelationTotal()
 {
 	return relationTotal;
 }
 
 
 extern "C"
-INT getTripleTotal()
+uint64_t getTripleTotal()
 {
-	return tripleTotal;
+	return trainList.size() + testList.size();
 }
 
 
 extern "C"
-INT getTrainTotal()
+uint64_t getTrainTotal()
 {
-	return trainTotal;
+	return trainList.size();
 }
 
 
 extern "C"
-INT getTestTotal()
+uint64_t getTestTotal()
 {
-	return testTotal;
+	return testList.size();
 }
 
 
 extern "C"
-INT getValidTotal()
+uint64_t getValidTotal()
 {
-	return validTotal;
+	return 0;
 }
 #endif

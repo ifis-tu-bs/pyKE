@@ -62,4 +62,4 @@ class ComplEx(Model):
 		self.relations = config['relTotal']
 		self._lambda = config['lmbda']
 		self.hiddensize = config['hidden_size']
-		super().__init__(**config)
+		super().__init__(config['batch_size'], config['negatives'])

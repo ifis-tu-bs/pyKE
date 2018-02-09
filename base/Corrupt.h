@@ -3,148 +3,102 @@
 #include "Random.h"
 #include "Triple.h"
 #include "Reader.h"
+#include <algorithm> // std::equal_range
 
 
-
-
-INT corrupt_head(INT id, INT h, INT r)
+	/*
+Answers a question with a randomized unknown head.
+	*/
+ent_id corrupt_head(
+		unsigned long int id,
+		ent_id tail,
+		rel_id relation)
 {
-	INT lef, rig;
+	// using precalculated better range
+	const auto range = std::equal_range(lefHead[tail], rigHead[tail], Triple(0, tail, relation), Triple::cmp_r);
+	const auto lower = range.first;
+	const auto upper = range.second;
 
-	lef = lefHead[h] - 1;
-	rig = rigHead[h];
-	while (lef + 1 < rig)
+	const ent_id x = rand_max(id, entityTotal - (upper - lower));
+	if (x < lower->t)
+		return x;
+	if (x + (upper - lower) > (upper-1)->t)
+		return x + (upper - lower);
+
+	// l <- min y s.t. x + y > A[y+1].h
+	auto l = lower;
+	auto u = upper;
+	while (u - l > 1)
 	{
-		INT mid = (lef + rig) >> 1;
-		if (trainHead[mid].r >= r)
-			rig = mid;
+		const auto m = l + ((u - l) >> 1);
+		if ((m+1)->t < x + (m - l))
+			l = m;
 		else
-			lef = mid;
+			u = m;
 	}
-	INT ll = rig;
-
-	lef = lefHead[h];
-	rig = rigHead[h] + 1;
-	while (lef + 1 < rig)
-	{
-		INT mid = (lef + rig) >> 1;
-		if (trainHead[mid].r <= r)
-			lef = mid;
-		else
-			rig = mid;
-	}
-	INT rr = lef;
-
-	INT tmp = rand_max(id, entityTotal - (rr - ll + 1));
-	if (tmp < trainHead[ll].t)
-		return tmp;
-	if (tmp > trainHead[rr].t - rr + ll - 1)
-		return tmp + rr - ll + 1;
-
-	lef = ll, rig = rr + 1;
-	while (lef + 1 < rig)
-	{
-		INT mid = (lef + rig) >> 1;
-		if (trainHead[mid].t - mid + ll - 1 < tmp)
-			lef = mid;
-		else 
-			rig = mid;
-	}
-	return tmp + lef - ll + 1;
-}
-
-INT corrupt_tail(INT id, INT t, INT r)
-{
-	INT lef, rig;
-
-	lef = lefTail[t] - 1;
-	rig = rigTail[t];
-	while (lef + 1 < rig)
-	{
-		INT mid = (lef + rig) >> 1;
-		if (trainTail[mid].r >= r)
-			rig = mid;
-		else
-			lef = mid;
-	}
-	INT ll = rig;
-
-	lef = lefTail[t];
-	rig = rigTail[t] + 1;
-	while (lef + 1 < rig)
-	{
-		INT mid = (lef + rig) >> 1;
-		if (trainTail[mid].r <= r)
-			lef = mid;
-		else
-			rig = mid;
-	}
-	INT rr = lef;
-
-	INT tmp = rand_max(id, entityTotal - (rr - ll + 1));
-	if (tmp < trainTail[ll].h)
-		return tmp;
-	if (tmp > trainTail[rr].h - rr + ll - 1)
-		return tmp + rr - ll + 1;
-
-	lef = ll;
-	rig = rr + 1;
-	while (lef + 1 < rig)
-	{
-		INT mid = (lef + rig) >> 1;
-		if (trainTail[mid].h - mid + ll - 1 < tmp)
-			lef = mid;
-		else 
-			rig = mid;
-	}
-	return tmp + lef - ll + 1;
+	return x + (l - lower);
 }
 
 
-INT corrupt_rel(INT id, INT h, INT t)
+	/*
+Answers a question with a randomized unknown tail.
+	*/
+ent_id corrupt_tail(unsigned long int id, ent_id head, rel_id relation)
 {
-	INT lef, rig;
+	// using precalculated better range
+	const auto range = std::equal_range(lefTail[head], rigTail[head], Triple(head, 0, relation), Triple::cmp_r);
+	const auto lower = range.first;
+	const auto upper = range.second;
 
-	lef = lefRel[h] - 1;
-	rig = rigRel[h];
-	while (lef + 1 < rig)
+	const ent_id x = rand_max(id, entityTotal - (upper - lower));
+	if (x < lower->h)
+		return x;
+	if (x + (upper - lower) > (upper-1)->h)
+		return x + (upper - lower);
+
+	// l <- min y s.t. x + y > A[y+1].h
+	auto l = lower;
+	auto u = upper;
+	while (u - l > 1)
 	{
-		INT mid = (lef + rig) >> 1;
-		if (trainRel[mid].t >= t)
-			rig = mid;
+		const auto m = l + ((u - l) >> 1);
+		if ((m+1)->h < x + (m - l))
+			l = m;
 		else
-			lef = mid;
+			u = m;
 	}
-	INT ll = rig;
+	return x + (l - lower);
+}
 
-	lef = lefRel[h];
-	rig = rigRel[h] + 1;
-	while (lef + 1 < rig)
+
+	/*
+Answers a question with a randomized unknown relation.
+	*/
+rel_id corrupt_rel(unsigned long int id, ent_id head, ent_id tail)
+{
+	// using precalculated better range
+	const auto range = std::equal_range(lefRel[head], rigHead[head], Triple(head, tail, 0), Triple::cmp_t);
+	const auto lower = range.first;
+	const auto upper = range.second;
+
+	const ent_id x = rand_max(id, relationTotal - (upper - lower));
+	if (x < lower->h)
+		return x;
+	if (x + (upper - lower) > (upper-1)->h)
+		return x + (upper - lower);
+
+	// l <- min y s.t. x + y > A[y+1].h
+	auto l = lower;
+	auto u = upper;
+	while (u - l > 1)
 	{
-		INT mid = (lef + rig) >> 1;
-		if (trainRel[mid].t <= t)
-			lef = mid;
+		const auto m = l + ((u - l) >> 1);
+		if ((m+1)->h < x + (m - l))
+			l = m;
 		else
-			rig = mid;
+			u = m;
 	}
-	INT rr = lef;
-
-	INT tmp = rand_max(id, relationTotal - (rr - ll + 1));
-	if (tmp < trainRel[ll].r)
-		return tmp;
-	if (tmp > trainRel[rr].r - rr + ll - 1)
-		return tmp + rr - ll + 1;
-
-	lef = ll, rig = rr + 1;
-	while (lef + 1 < rig)
-	{
-		INT mid = (lef + rig) >> 1;
-		if (trainRel[mid].r - mid + ll - 1 < tmp)
-			lef = mid;
-		else 
-			rig = mid;
-	}
-	return tmp + lef - ll + 1;
+	return x + (l - lower);
 }
 
 #endif
