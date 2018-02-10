@@ -1,12 +1,8 @@
 #coding:utf-8
 from tensorflow import Session, Graph, global_variables_initializer, variable_scope
 from tensorflow.contrib.layers import xavier_initializer
-import tensorflow as tf
-Saver = tf.train.Saver
+from tensorflow.python.training.saver import Saver
 from numpy import zeros, int64, float32, bool_
-import os
-import time
-import datetime
 from ctypes import c_void_p, c_int64, c_char_p, cdll, CFUNCTYPE, c_int
 from json import dumps
 def c_str(s):
@@ -25,8 +21,7 @@ class Config(object):
 		self._l.query_head.argtypes = [c_void_p, c_int64, c_int64]
 		self._l.query_tail.argtypes = [c_int64, c_void_p, c_int64]
 		self._l.query_rel.argtypes = [c_int64, c_int64, c_void_p]
-		self.logcall = CFUNCTYPE(c_int, c_char_p)
-		self._l.importTrainFiles.argtypes = [c_void_p, c_int64, c_int64, self.logcall]
+		self._l.importTrainFiles.argtypes = [c_void_p, c_int64, c_int64]
 		self._l.randReset.argtypes = [c_int64, c_int64]
 		self.export_steps = 0
 
@@ -36,8 +31,7 @@ class Config(object):
 		self.negative_ent, self.negative_rel = negative_entities, negative_relations
 		self._m = None
 		self.entTotal, self.relTotal = entities, relations
-		self._l.importTrainFiles(c_str(filename), entities, relations,
-				self.logcall(lambda x: print(x) or 0))
+		self._l.importTrainFiles(c_str(filename), entities, relations)
 		self.trainTotal = self._l.getTrainTotal()
 		self.nbatches = batch_count
 		self.batch_size = self.trainTotal // batch_count
@@ -172,6 +166,10 @@ class Config(object):
 				self.graphname and self._save(self.graphname)
 
 
+	def open(self, filename):
+		self._l.importTrainFiles(c_str(filename), self.entTotal, self.relTotal)
+
+
 	def predict(self, h, t, r):
 		feed_dict = {
 				self._m.predict_h: h,
@@ -204,4 +202,3 @@ class Config(object):
 			self._l.query_rel(head, tail, c_array(relations))
 			return relations
 		raise NotImplementedError('querying single facts')
-

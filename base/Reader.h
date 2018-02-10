@@ -32,15 +32,11 @@ std::vector<float> meanh;
 std::vector<float> meant;
 
 
-typedef int (*logCall)(int);
-
-
 extern "C"
-void importTrainFiles(
+int importTrainFiles(
 		const char* inPath,
 		ent_id entities,
-		rel_id relations,
-		logCall log)
+		rel_id relations)
 try
 {
 	entityTotal = entities;
@@ -143,10 +139,11 @@ try
 
 	for (rel_id i = 0; i < relations; ++i)
 		meant[i] = meant[i] > .5 ? freqr[i] / meant[i] : 0;
+	return 0;
 }
 catch (std::out_of_range& e)
 {
-	log(0);
+	return 1;
 }
 
 
