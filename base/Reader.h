@@ -67,13 +67,13 @@ try
 	rigHead.assign(entities, trainHead.cbegin());
 	{
 		const auto end = trainHead.cend();
-		auto j = trainHead.cbegin();
-		for (auto i = j + 1; i != end; j = i++)
+		auto i = trainHead.cbegin();
+		ent_id last = i->t;
+		for (++i; i != end; last = i->t, ++i)
 		{
-			if (i->t == j->t)
+			if (i->t == last)
 				continue;
-			rigHead.at(j->t) = j;
-			lefHead.at(i->t) = i;
+			rigHead.at(last) = lefHead.at(i->t) = i;
 		}
 	}
 	lefHead.at(trainHead.front().t) = trainHead.cbegin();
@@ -83,13 +83,13 @@ try
 	rigTail.assign(entities, trainTail.cbegin());
 	{
 		const auto end = trainTail.cend();
-		auto j = trainTail.cbegin();
-		for (auto i = j + 1; i != end; j = i++)
+		auto i = trainTail.cbegin();
+		ent_id last = i->h;
+		for (++i; i != end; last = i->h, ++i)
 		{
-			if (i->h == j->h)
+			if (i->h == last)
 				continue;
-			rigTail.at(j->h) = j;
-			lefTail.at(i->h) = i;
+			rigTail.at(last) = lefTail.at(i->h) = i;
 		}
 	}
 	lefTail.at(trainTail.front().h) = trainTail.cbegin();
@@ -99,13 +99,13 @@ try
 	rigRel.assign(entities, trainRel.cbegin());
 	{
 		const auto end = trainRel.cend();
-		auto j = trainRel.cbegin();
-		for (auto i = j + 1; i != end; j = i++)
+		auto i = trainRel.cbegin();
+		ent_id last = i->h;
+		for (++i; i != end; last = i->h, ++i)
 		{
-			if (i->h == j->h)
+			if (i->h == last)
 				continue;
-			rigRel.at(j->h) = j;
-			lefRel.at(i->h) = i;
+			rigRel.at(last) = lefRel.at(i->h) = i;
 		}
 	}
 	lefRel.at(trainRel.front().h) = trainRel.cbegin();

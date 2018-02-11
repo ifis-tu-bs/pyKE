@@ -14,7 +14,7 @@ def c_array(a):
 class Config(object):
 
 
-	def __init__(self, library='./release/Base.so'):
+	def __init__(self, library='./libopenke.so'):
 		self._l = cdll.LoadLibrary(library)
 		self._l.sampling.argtypes = [c_void_p, c_void_p, c_void_p, c_void_p, c_int64, c_int64, c_int64, c_int64]
 		self._l.bernSampling.argtypes = self._l.sampling.argtypes

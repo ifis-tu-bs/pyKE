@@ -1,7 +1,7 @@
 #ifndef TRIPLE_H
 #	define TRIPLE_H
 #	include <algorithm> // std::min
-#	include <cstdint> // std::uint64_t
+#	include <cstdint> // int64_t
 
 
 using ent_id = int64_t;
