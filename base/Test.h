@@ -42,7 +42,7 @@ try
 	const auto begin = range.first;
 	const auto end = range.second;
 	for (auto i = begin; i != end; ++i)
-		out[i->h] = 1;
+		out[i->t] = 1;
 }
 catch (std::out_of_range& e)
 {
@@ -61,7 +61,7 @@ try
 	const auto begin = range.first;
 	const auto end = range.second;
 	for (auto i = begin; i != end; ++i)
-		out[i->h] = 1;
+		out[i->r] = 1;
 }
 catch (std::out_of_range& e)
 {
