@@ -181,24 +181,30 @@ class Config(object):
 
 
 	def query(self, head, tail, relation):
-		if head == None:
-			if tail == None:
-				if relation == None:
+		if head is None:
+			if tail is None:
+				if relation is None:
 					raise NotImplementedError('querying everything')
 				raise NotImplementedError('querying full relation')
-			if relation == None:
+			if relation is None:
 				raise NotImplementedError('querying full head')
-			tails = zeros(self.entTotal, bool_)
-			self._l.query_head(head, c_array(tails), relation)
-			return tails
-		if tail == None:
-			if relation == None:
-				raise NotImplementedError('querying full tail')
 			heads = zeros(self.entTotal, bool_)
-			self._l.query_tail(c_array(heads), tail, relation)
+			self._l.query_head(c_array(heads), tail, relation)
 			return heads
-		if relation == None:
+		if tail is None:
+			if relation is None:
+				raise NotImplementedError('querying full tail')
+			tails = zeros(self.entTotal, bool_)
+			self._l.query_tail(head, c_array(tails), relation)
+			return tails
+		if relation is None:
 			relations = zeros(self.relTotal, bool_)
 			self._l.query_rel(head, tail, c_array(relations))
 			return relations
 		raise NotImplementedError('querying single facts')
+
+
+	def embedding(self, head, tail, relation):
+		assert head.shape == tail.shape == relation.shape # [X]
+		assert head.dtype == tail.dtype == relation.dtype == int64
+		raise NotImplementedError('triple embedding')
