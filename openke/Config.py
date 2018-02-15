@@ -204,11 +204,11 @@ class Config(object):
 		raise NotImplementedError('querying single facts')
 
 
-	def embedding(self, head, tail, relation):
+	def embed(self, head, tail, relation):
 		feed_dict = {
 				self._m.predict_h: h,
 				self._m.predict_t: t,
 				self._m.predict_r: r}
 		with self._g.as_default():
 			with self._s.as_default():
-				return self._s.run(self._m._embeddings(), feed_dict)
+				return self._s.run(self._m.embed, feed_dict)

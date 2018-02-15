@@ -3,12 +3,24 @@ from tensorflow import (get_variable as var,
                         reduce_sum as sum,
                         reduce_mean as mean,
                         maximum as max,
-                        matmul, squeeze, nn)
+                        matmul, squeeze, nn, rank)
 from tensorflow.contrib.layers import xavier_initializer as xavier
 at = nn.embedding_lookup
 from . import Model
 
 class TransR(Model):
+
+
+	def _embeddings(self, h, t, r):
+		'''The term to embed triples.'''
+
+		h = at(self.ent_embeddings, h) # [.,D,1]
+		t = at(self.ent_embeddings, t) # [.,D,1]
+		m = at(self.transfer_matrix, r) # [.,K,D]
+		r = at(self.rel_embeddings, r) # [.,K,1]
+		h = matmul(m, h) # [.,K,1]
+		t = matmul(m, t) # [.,K,1]
+		return squeeze(h + r - t, [rank(r)-1]) # [.,K]
 
 
 	def embedding_def(self):
@@ -29,18 +41,6 @@ class TransR(Model):
 				"transfer_matrix": self.transfer_matrix}
 
 
-	def _embeddings(self, h, t, r):
-		'''The term to embed triples.'''
-
-		h = at(self.ent_embeddings, h) # [.,D,1]
-		t = at(self.ent_embeddings, t) # [.,D,1]
-		m = at(self.transfer_matrix, r) # [.,K,D]
-		r = at(self.rel_embeddings, r) # [.,K,1]
-		h = matmul(m, h) # [.,K,1]
-		t = matmul(m, t) # [.,K,1]
-		return squeeze(h + r - t, [r.rank-1]) # [.,K]
-
-
 	def loss_def(self):
 		'''Initializes the loss function.'''
 
@@ -57,9 +57,9 @@ class TransR(Model):
 	def predict_def(self):
 		'''Initializes the prediction function.'''
 
-		e = self._embeddings(*self.get_predict_instance()) # [B,K]
+		self.embed = self._embeddings(*self.get_predict_instance()) # [B,K]
 
-		self.predict = sum(e, 1) # [B]
+		self.predict = sum(self.embed, 1) # [B]
 
 
 	def __init__(self, **config):

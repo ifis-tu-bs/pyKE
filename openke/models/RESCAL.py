@@ -13,6 +13,16 @@ from . import Model
 class RESCAL(Model):
 
 
+	def _embeddings(self, h, t, r):
+		'''The term to embed triples.'''
+
+		h = at(self.ent_embeddings, h) # [.,D]
+		t = at(self.ent_embeddings, t) # [.,D]
+		r = at(self.rel_matrices, r) # [.,D,D]
+
+		return h * matmul(r, t) # [.,D]
+
+
 	def embedding_def(self):
 		'''Initializes the variables of the model.'''
 
@@ -25,16 +35,6 @@ class RESCAL(Model):
 		self.parameter_lists = {
 				"ent_embeddings": self.ent_embeddings,
 				"rel_matrices": self.rel_matrices}
-
-
-	def _embeddings(self, h, t, r):
-		'''The term to embed triples.'''
-
-		h = at(self.ent_embeddings, h) # [.,D]
-		t = at(self.ent_embeddings, t) # [.,D]
-		r = at(self.rel_matrices, r) # [.,D,D]
-
-		return h * matmul(r, t) # [.,D]
 
 
 	def loss_def(self):
@@ -53,7 +53,7 @@ class RESCAL(Model):
 	def predict_def(self):
 		'''Initializes the prediction function.'''
 
-		e = self._embeddings(*self.get_predict_instance()) # [B,D]
+		self.embed = self._embeddings(*self.get_predict_instance()) # [B,D]
 
 		self.predict = -sum(e, 1) # [B]
 

@@ -12,6 +12,20 @@ from . import Model
 class TransH(Model):
 
 
+	def _embeddings(self, h, t, r):
+		'''The term to embed triples.'''
+
+		n = at(self.normal_vectors, r) # [.,D]
+		def transfer(e):
+			return e - sum(e * n, 1, keep_dims=True) * n
+
+		h = transfer(at(self.ent_embeddings, h)) # [.,D]
+		t = transfer(at(self.ent_embeddings, t)) # [.,D]
+		r = at(self.rel_embeddings, r) # [.,D]
+
+		return h + r - t # [.,D]
+
+
 	def embedding_def(self):
 		'''Initializes the variables of the model.'''
 
@@ -31,20 +45,6 @@ class TransH(Model):
 				"normal_vectors": self.normal_vectors}
 
 
-	def _embeddings(self, h, t, r):
-		'''The term to embed triples.'''
-
-		n = at(self.normal_vectors, r) # [.,D]
-		def transfer(e):
-			return e - sum(e * n, 1, keep_dims=True) * n
-
-		h = transfer(at(self.ent_embeddings, h)) # [.,D]
-		t = transfer(at(self.ent_embeddings, t)) # [.,D]
-		r = at(self.rel_embeddings, r) # [.,D]
-
-		return h + r - t # [.,D]
-
-
 	def loss_def(self):
 		'''Initializes the loss function.'''
 
@@ -61,9 +61,9 @@ class TransH(Model):
 	def predict_def(self):
 		'''Initializes the prediction function.'''
 
-		s = self._embeddings(*self.get_predict_instance()) # [B,D]
+		self.embed = self._embeddings(*self.get_predict_instance()) # [B,D]
 
-		self.predict = sum(abs(s), 1) # [B]
+		self.predict = sum(abs(self.embed), 1) # [B]
 
 
 	def __init__(self, **config):

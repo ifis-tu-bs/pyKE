@@ -12,26 +12,6 @@ from . import Model
 class ComplEx(Model):
 
 
-	def embedding_def(self):
-		'''Initializes the variables.'''
-
-		E, R, D = self.entities, self.relations, self.hiddensize
-
-		self.real_entity_embeddings = var("ent_re_embeddings", [E, D],
-				initializer=xavier(uniform=True))
-		self.real_relation_embeddings = var("rel_re_embeddings", [R, D],
-				initializer=xavier(uniform=True))
-		self.imaginary_entity_embeddings = var("ent_im_embeddings", [E, D],
-				initializer=xavier(uniform=True))
-		self.imaginary_relation_embeddings = var("rel_im_embeddings", [R, D],
-				initializer=xavier(uniform=True))
-		self.parameter_lists = {
-				"ent_re_embeddings": self.real_entity_embeddings,
-				"ent_im_embeddings": self.imaginary_entity_embeddings,
-				"rel_re_embeddings": self.real_relation_embeddings,
-				"rel_im_embeddings": self.imaginary_relation_embeddings}
-
-
 	def _lookup(self, h, t, r):
 		'''Gets the variables concerning a fact.'''
 		assert h.shape == t.shape == r.shape
@@ -55,6 +35,26 @@ three complex numbers.'''
 		return self._term(*self._lookup(h, t, r))
 
 
+	def embedding_def(self):
+		'''Initializes the variables.'''
+
+		E, R, D = self.entities, self.relations, self.hiddensize
+
+		self.real_entity_embeddings = var("ent_re_embeddings", [E, D],
+				initializer=xavier(uniform=True))
+		self.real_relation_embeddings = var("rel_re_embeddings", [R, D],
+				initializer=xavier(uniform=True))
+		self.imaginary_entity_embeddings = var("ent_im_embeddings", [E, D],
+				initializer=xavier(uniform=True))
+		self.imaginary_relation_embeddings = var("rel_im_embeddings", [R, D],
+				initializer=xavier(uniform=True))
+		self.parameter_lists = {
+				"ent_re_embeddings": self.real_entity_embeddings,
+				"ent_im_embeddings": self.imaginary_entity_embeddings,
+				"rel_re_embeddings": self.real_relation_embeddings,
+				"rel_im_embeddings": self.imaginary_relation_embeddings}
+
+
 	def loss_def(self):
 		'''Initializes the loss function.'''
 
@@ -72,9 +72,9 @@ three complex numbers.'''
 	def predict_def(self):
 		'''Initializes the prediction function.'''
 
-		e = self._embeddings(*self.get_predict_instance())
+		self.embed = self._embeddings(*self.get_predict_instance())
 
-		self.predict = -sum(e, 1, keep_dims=True)
+		self.predict = -sum(self.embed, 1, keep_dims=True)
 
 
 	def __init__(self, **config):

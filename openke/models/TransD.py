@@ -12,6 +12,24 @@ from . import Model
 class TransD(Model):
 
 
+	def _embeddings(self, h, t, r):
+		'''The term to embed triples.'''
+
+		he = at(self.ent_embeddings, h) # [.,D]
+		te = at(self.ent_embeddings, t) # [.,D]
+		re = at(self.rel_embeddings, r) # [.,D]
+		ht = at(self.ent_transfer, h) # [.,D]
+		tt = at(self.ent_transfer, t) # [.,D]
+		rt = at(self.rel_transfer, r) # [.,D]
+
+		def transfer(e, t):
+			return e + sum(e * t, 1, keep_dims=True) * rt
+		h = transfer(he, ht) # [.,D]
+		t = transfer(te, tt) # [.,D]
+
+		return h + re - t
+
+
 	def embedding_def(self):
 
 		E, R, D = self.entities, self.relations, self.hiddensize
@@ -31,24 +49,6 @@ class TransD(Model):
 				"rel_transfer": self.rel_transfer}
 
 
-	def _embeddings(self, h, t, r):
-		'''The term to embed triples.'''
-
-		he = at(self.ent_embeddings, h) # [.,D]
-		te = at(self.ent_embeddings, t) # [.,D]
-		re = at(self.rel_embeddings, r) # [.,D]
-		ht = at(self.ent_transfer, h) # [.,D]
-		tt = at(self.ent_transfer, t) # [.,D]
-		rt = at(self.rel_transfer, r) # [.,D]
-
-		def transfer(e, t):
-			return e + sum(e * t, 1, keep_dims=True) * rt
-		h = transfer(he, ht) # [.,D]
-		t = transfer(te, tt) # [.,D]
-
-		return h + re - t
-
-
 	def loss_def(self):
 		'''Initializes the loss function.'''
 
@@ -65,9 +65,9 @@ class TransD(Model):
 	def predict_def(self):
 		'''Initializes the prediction function.'''
 
-		e = self._embeddings(*self.get_predict_instance()) # [B,D]
+		self.embed = self._embeddings(*self.get_predict_instance()) # [B,D]
 
-		self.predict = tf.reduce_sum(abs(e), 1, keep_dims = True) # [B]
+		self.predict = sum(abs(self.embed), 1, keep_dims=True) # [B]
 
 
 	def __init__(self, **config):

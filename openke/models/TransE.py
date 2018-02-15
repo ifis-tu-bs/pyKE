@@ -12,6 +12,16 @@ from . import Model
 class TransE(Model):
 
 
+	def _embeddings(self, h, t, r):
+		'''The term to embed triples.'''
+
+		h = at(self.ent_embeddings, h) # [.,D]
+		t = at(self.ent_embeddings, t) # [.,D]
+		r = at(self.rel_embeddings, r) # [.,D]
+
+		return h - t + r # [.,D]
+
+
 	def embedding_def(self):
 		'''Initializes the variables of the model.'''
 
@@ -24,16 +34,6 @@ class TransE(Model):
 		self.parameter_lists = {
 				"ent_embeddings": self.ent_embeddings,
 				"rel_embeddings": self.rel_embeddings}
-
-
-	def _embeddings(self, h, t, r):
-		'''The term to embed triples.'''
-
-		h = at(self.ent_embeddings, h) # [.,D]
-		t = at(self.ent_embeddings, t) # [.,D]
-		r = at(self.rel_embeddings, r) # [.,D]
-
-		return h - t + r # [.,D]
 
 
 	def loss_def(self):
@@ -52,7 +52,7 @@ class TransE(Model):
 	def predict_def(self):
 		'''Initializes the prediction function.'''
 
-		e = self._embeddings(*self.get_predict_instance()) # [B,D]
+		self.embed = self._embeddings(*self.get_predict_instance()) # [B,D]
 
 		self.predict = mean(abs(e), 1) # [B]
 
