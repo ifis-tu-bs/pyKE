@@ -170,11 +170,11 @@ class Config(object):
 		self._l.importTrainFiles(c_str(filename), self.entTotal, self.relTotal)
 
 
-	def predict(self, h, t, r):
+	def predict(self, head, tail, relation):
 		feed_dict = {
-				self._m.predict_h: h,
-				self._m.predict_t: t,
-				self._m.predict_r: r}
+				self._m.predict_h: head,
+				self._m.predict_t: tail,
+				self._m.predict_r: relation}
 		with self._g.as_default():
 			with self._s.as_default():
 				return self._s.run(self._m.predict, feed_dict)
@@ -206,9 +206,9 @@ class Config(object):
 
 	def embed(self, head, tail, relation):
 		feed_dict = {
-				self._m.predict_h: h,
-				self._m.predict_t: t,
-				self._m.predict_r: r}
+				self._m.predict_h: head,
+				self._m.predict_t: tail,
+				self._m.predict_r: relation}
 		with self._g.as_default():
 			with self._s.as_default():
 				return self._s.run(self._m.embed, feed_dict)

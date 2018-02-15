@@ -46,12 +46,12 @@ class TransR(Model):
 
 		def scores(h, t, r):
 			e = self._embeddings(h, t, r) # [B,N,K]
-			return sum(mean(p, 1), 1) # [B]
+			return sum(mean(e, 1), 1) # [B]
 
 		p = scores(*self.get_positive_instance(in_batch=True)) # [B]
 		n = scores(*self.get_negative_instance(in_batch=True)) # [B]
 
-		self.loss = sum(max(ps - ns + self.margin, 0)) # []
+		self.loss = sum(max(p - n + self.margin, 0)) # []
 
 
 	def predict_def(self):
