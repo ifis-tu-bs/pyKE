@@ -1,6 +1,11 @@
 #coding:utf-8
-import tensorflow as tf
-from tensorflow.contrib.layers import xavier_initializer
+from tensorflow import (get_variable as var,
+                        reduce_sum as sum,
+                        reduce_mean as mean,
+                        maximum as max,
+                        nn)
+from tensorflow.contrib.layers import xavier_initializer as xavier
+at, softplus = nn.embedding_lookup, nn.softplus
 from . import Model
 
 
@@ -8,53 +13,68 @@ class ComplEx(Model):
 
 
 	def embedding_def(self):
-		d, cE, cR = self.hiddensize, self.entities, self.relations
-		self.ent1_embeddings = tf.get_variable("ent1_embeddings", [cE, d], initializer=xavier_initializer(uniform=True))
-		self.rel1_embeddings = tf.get_variable("rel1_embeddings", [cR, d], initializer=xavier_initializer(uniform=True))
-		self.ent2_embeddings = tf.get_variable("ent2_embeddings", [cE, d], initializer=xavier_initializer(uniform=True))
-		self.rel2_embeddings = tf.get_variable("rel2_embeddings", [cR, d], initializer=xavier_initializer(uniform=True))
+		'''Initializes the variables.'''
+
+		E, R, D = self.entities, self.relations, self.hiddensize
+
+		self.real_entity_embeddings = var("ent_re_embeddings", [E, D],
+				initializer=xavier(uniform=True))
+		self.real_relation_embeddings = var("rel_re_embeddings", [R, D],
+				initializer=xavier(uniform=True))
+		self.imaginary_entity_embeddings = var("ent_im_embeddings", [E, D],
+				initializer=xavier(uniform=True))
+		self.imaginary_relation_embeddings = var("rel_im_embeddings", [R, D],
+				initializer=xavier(uniform=True))
 		self.parameter_lists = {
-				"ent_re_embeddings":self.ent1_embeddings,
-				"ent_im_embeddings":self.ent2_embeddings,
-				"rel_re_embeddings":self.rel1_embeddings,
-				"rel_im_embeddings":self.rel2_embeddings}
+				"ent_re_embeddings": self.real_entity_embeddings,
+				"ent_im_embeddings": self.imaginary_entity_embeddings,
+				"rel_re_embeddings": self.real_relation_embeddings,
+				"rel_im_embeddings": self.imaginary_relation_embeddings}
 
 
-	def _calc(self, e1_h, e2_h, e1_t, e2_t, r1, r2):
-		return e1_h * e1_t * r1 + e2_h * e2_t * r1 + e1_h * e2_t * r2 - e2_h * e1_t * r2
+	def _lookup(self, h, t, r):
+		'''Gets the variables concerning a fact.'''
+		assert h.shape == t.shape == r.shape
+		hre = at(self.real_entity_embeddings, h)
+		tre = at(self.real_entity_embeddings, t)
+		rre = at(self.real_relation_embeddings, r)
+		him = at(self.imaginary_entity_embeddings, h)
+		tim = at(self.imaginary_entity_embeddings, t)
+		rim = at(self.imaginary_relation_embeddings, r)
+		return hre, him, tre, tim, rre, rim
 
 
-	def loss_def(self, _lambda=.0):
-		#Obtaining the initial configuration of the model
-		#To get positive triples and negative triples for training
-		#To get labels for the triples, positive triples as 1 and negative triples as -1
-		#The shapes of h, t, r, y are (batch_size, 1 + negative_ent + negative_rel)
-		h, t, r = self.get_all_instance()
+	def _term(self, hre, him, tre, tim, rre, rim):
+		'''Returns the real part of the ComplEx embedding of a fact described by
+three complex numbers.'''
+		return hre * tre * rre + him * tim * rre + hre * tim * rim - him * tre * rim
+
+
+	def _embeddings(self, h, t, r):
+		'''The term to embed triples.'''
+		return self._term(*self._lookup(h, t, r))
+
+
+	def loss_def(self):
+		'''Initializes the loss function.'''
+
+		hre, him, tre, tim, rre, rim = self._lookup(*self.get_all_instance())
 		y = self.get_all_labels()
-		#Embedding entities and relations of triples
-		e1_h = tf.nn.embedding_lookup(self.ent1_embeddings, h)
-		e2_h = tf.nn.embedding_lookup(self.ent2_embeddings, h)
-		e1_t = tf.nn.embedding_lookup(self.ent1_embeddings, t)
-		e2_t = tf.nn.embedding_lookup(self.ent2_embeddings, t)
-		r1 = tf.nn.embedding_lookup(self.rel1_embeddings, r)
-		r2 = tf.nn.embedding_lookup(self.rel2_embeddings, r)
-		#Calculating score functions for all positive triples and negative triples
-		res = tf.reduce_sum(self._calc(e1_h, e2_h, e1_t, e2_t, r1, r2), 1, keep_dims = False)
-		loss_func = tf.reduce_mean(tf.nn.softplus(- y * res), 0, keep_dims = False)
-		regul_func = tf.reduce_mean(e1_h ** 2) + tf.reduce_mean(e1_t ** 2) + tf.reduce_mean(e2_h ** 2) + tf.reduce_mean(e2_t ** 2) + tf.reduce_mean(r1 ** 2) + tf.reduce_mean(r2 ** 2)
-		#Calculating loss to get what the framework will optimize
-		self.loss =  loss_func + _lambda * regul_func
+
+		e = self._term(hre, him, tre, tim, rre, rim)
+		res = sum(e, 1)
+		loss_func = mean(softplus(- y * res), 0)
+		regul_func = mean(hre ** 2) + mean(tre ** 2) + mean(him ** 2) + mean(tim ** 2) + mean(rre ** 2) + mean(rim ** 2)
+
+		self.loss =  loss_func + self._lambda * regul_func
 
 
 	def predict_def(self):
-		h, t, r = self.get_predict_instance()
-		h0 = tf.nn.embedding_lookup(self.ent1_embeddings, h)
-		t0 = tf.nn.embedding_lookup(self.ent1_embeddings, t)
-		r0 = tf.nn.embedding_lookup(self.rel1_embeddings, r)
-		h1 = tf.nn.embedding_lookup(self.ent2_embeddings, h)
-		t1 = tf.nn.embedding_lookup(self.ent2_embeddings, t)
-		r1 = tf.nn.embedding_lookup(self.rel2_embeddings, r)
-		self.predict = -tf.reduce_sum(self._calc(h0, h1, t0, t1, r0, r1), 1, keep_dims=True)
+		'''Initializes the prediction function.'''
+
+		e = self._embeddings(*self.get_predict_instance())
+
+		self.predict = -sum(e, 1, keep_dims=True)
 
 
 	def __init__(self, **config):

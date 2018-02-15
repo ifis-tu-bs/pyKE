@@ -62,11 +62,11 @@ class Model(object):
 
 
 	def loss_def(self):
-		pass
+		raise NotImplementedError('loss impossible without model')
 
 
 	def predict_def(self):
-		pass
+		raise NotImplementedError('prediction impossible without model')
 
 
 	def __init__(self, **config):

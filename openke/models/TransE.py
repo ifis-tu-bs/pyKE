@@ -13,49 +13,48 @@ class TransE(Model):
 
 
 	def embedding_def(self):
+		'''Initializes the variables of the model.'''
 
-		d, dE, dR = self.hiddensize, self.entities, self.relations
+		E, R, D = self.entities, self.relations, self.hiddensize
 
-		self.ent_embeddings = var("ent_embeddings", [dE, d],
+		self.ent_embeddings = var("ent_embeddings", [E, D],
 				initializer=xavier(uniform = False))
-		self.rel_embeddings = var("rel_embeddings", [dR, d],
+		self.rel_embeddings = var("rel_embeddings", [R, D],
 				initializer=xavier(uniform = False))
 		self.parameter_lists = {
 				"ent_embeddings": self.ent_embeddings,
 				"rel_embeddings": self.rel_embeddings}
 
 
+	def _embeddings(self, h, t, r):
+		'''The term to embed triples.'''
+
+		h = at(self.ent_embeddings, h) # [.,D]
+		t = at(self.ent_embeddings, t) # [.,D]
+		r = at(self.rel_embeddings, r) # [.,D]
+
+		return h - t + r # [.,D]
+
+
 	def loss_def(self):
+		'''Initializes the loss function.'''
 
-		#To get positive triples and negative triples for training
-		ph, pt, pr = self.get_positive_instance(in_batch=True) # [B, 1]
-		nh, nt, nr = self.get_negative_instance(in_batch=True) # [B, N]
+		def scores(h, t, r):
+			e = self._embeddings(h, t, r) # [B,N,D]
+			return sum(mean(abs(e), 1), 1, keep_dims=True) # [B]
 
-		#Embedding entities and relations of triples
-		ph = at(self.ent_embeddings, ph)
-		pt = at(self.ent_embeddings, pt)
-		pr = at(self.rel_embeddings, pr)
-		nh = at(self.ent_embeddings, nh)
-		nt = at(self.ent_embeddings, nt)
-		nr = at(self.rel_embeddings, nr)
+		p = scores(*self.get_positive_instance(in_batch=True)) # [B]
+		n = scores(*self.get_negative_instance(in_batch=True)) # [B]
 
-		#Calculating score functions for all positive triples and negative triples
-		sp = sum(mean(abs(ph - pt + pr), 1, keep_dims=False), 1, keep_dims=True)
-		sn = sum(mean(abs(nh - nt + nr), 1, keep_dims=False), 1, keep_dims=True)
-
-		#Calculating loss to get what the framework will optimize
-		self.loss = sum(max(sp - sn + self.margin, 0))
+		self.loss = sum(max(p - n + self.margin, 0)) # []
 
 
 	def predict_def(self):
+		'''Initializes the prediction function.'''
 
-		h, t, r = self.get_predict_instance()
+		e = self._embeddings(*self.get_predict_instance()) # [B,D]
 
-		eh = at(self.ent_embeddings, h)
-		et = at(self.ent_embeddings, t)
-		er = at(self.rel_embeddings, r)
-
-		self.predict = mean(abs(eh - et + er), 1, keep_dims=False)
+		self.predict = mean(abs(e), 1) # [B]
 
 
 	def __init__(self, **config):

@@ -13,6 +13,7 @@ class TransH(Model):
 
 
 	def embedding_def(self):
+		'''Initializes the variables of the model.'''
 
 		E, R, D = self.entities, self.relations, self.hiddensize
 
@@ -30,44 +31,44 @@ class TransH(Model):
 				"normal_vectors": self.normal_vectors}
 
 
-	def _scores(self, h, t, r):
+	def _embeddings(self, h, t, r):
+		'''The term to embed triples.'''
 
-		n = at(self.normal_vectors, r)
-
+		n = at(self.normal_vectors, r) # [.,D]
 		def transfer(e):
 			return e - sum(e * n, 1, keep_dims=True) * n
 
-		h = transfer(at(self.ent_embeddings, h))
-		t = transfer(at(self.ent_embeddings, t))
-		r = at(self.rel_embeddings, r)
+		h = transfer(at(self.ent_embeddings, h)) # [.,D]
+		t = transfer(at(self.ent_embeddings, t)) # [.,D]
+		r = at(self.rel_embeddings, r) # [.,D]
 
-		return abs(h + r - t)
+		return h + r - t # [.,D]
 
 
 	def loss_def(self):
+		'''Initializes the loss function.'''
 
-		B = self.batchsize
-		def fit(x):
-			return reshape(x, [B, -1])
+		def scores(h, t, r):
+			e = self._embeddings(h, t, r) # [B,N,D]
+			return sum(mean(abs(e), 1), 1, keep_dims=True) # [B]
 
-		def score(h, t, r):
-			s = self._scores(fit(h), fit(t), fit(r))
-			return sum(mean(s, 1, keep_dims=False), 1, keep_dims=True)
+		p = scores(*self.get_positive_instance(in_batch=True)) # [B]
+		n = scores(*self.get_negative_instance(in_batch=True)) # [B]
 
-		p = score(*self.get_positive_instance(in_batch=False))
-		n = score(*self.get_negative_instance(in_batch=False))
-
-		self.loss = sum(max(p - n + self.margin, 0))
+		self.loss = sum(max(p - n + self.margin, 0)) # []
 
 
 	def predict_def(self):
-		s = self._scores(*self.get_predict_instance())
-		self.predict = sum(s, 1, keep_dims=True)
+		'''Initializes the prediction function.'''
+
+		s = self._embeddings(*self.get_predict_instance()) # [B,D]
+
+		self.predict = sum(abs(s), 1) # [B]
 
 
 	def __init__(self, **config):
 		self.entities = config['entTotal']
 		self.relations = config['relTotal']
-		self.margin = config['margin']
 		self.hiddensize = config['hidden_size']
+		self.margin = config['margin']
 		super().__init__(**config)
