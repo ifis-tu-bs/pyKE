@@ -205,6 +205,10 @@ class Config(object):
 
 
 	def embedding(self, head, tail, relation):
-		assert head.shape == tail.shape == relation.shape # [X]
-		assert head.dtype == tail.dtype == relation.dtype == int64
-		raise NotImplementedError('triple embedding')
+		feed_dict = {
+				self._m.predict_h: h,
+				self._m.predict_t: t,
+				self._m.predict_r: r}
+		with self._g.as_default():
+			with self._s.as_default():
+				return self._s.run(self._m._embeddings(), feed_dict)
