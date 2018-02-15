@@ -20,7 +20,7 @@ class TransR(Model):
 		r = at(self.rel_embeddings, r) # [.,K,1]
 		h = matmul(m, h) # [.,K,1]
 		t = matmul(m, t) # [.,K,1]
-		return squeeze(h + r - t, [rank(r)-1]) # [.,K]
+		return squeeze(h + r - t, [r.shape.ndims-1]) # [.,K]
 
 
 	def embedding_def(self):
