@@ -2,14 +2,13 @@
 from tensorflow import (get_variable as var,
                         reduce_sum as sum,
                         reduce_mean as mean,
-                        maximum as max,
                         nn)
 from tensorflow.contrib.layers import xavier_initializer as xavier
 at, softplus = nn.embedding_lookup, nn.softplus
-from . import Model
+from .Base import ModelClass
 
 
-class ComplEx(Model):
+class ComplEx(ModelClass):
 
 
 	def _lookup(self, h, t, r):

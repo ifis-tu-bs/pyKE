@@ -6,37 +6,37 @@ from tensorflow import (get_variable as var,
                         nn, reshape)
 from tensorflow.contrib.layers import xavier_initializer as xavier
 at = nn.embedding_lookup
-from . import Model
+from .Base import ModelClass
 
 
-class TransH(Model):
+class TransH(ModelClass):
 
 
 	def _embeddings(self, h, t, r):
 		'''The term to embed triples.'''
 
-		n = at(self.normal_vectors, r) # [.,D]
+		n = at(self.normal_vectors, r) # [.,d]
 		def transfer(e):
 			return e - sum(e * n, 1, keep_dims=True) * n
 
-		h = transfer(at(self.ent_embeddings, h)) # [.,D]
-		t = transfer(at(self.ent_embeddings, t)) # [.,D]
-		r = at(self.rel_embeddings, r) # [.,D]
+		h = transfer(at(self.ent_embeddings, h)) # [.,d]
+		t = transfer(at(self.ent_embeddings, t)) # [.,d]
+		r = at(self.rel_embeddings, r) # [.,d]
 
-		return h + r - t # [.,D]
+		return h + r - t # [.,d]
 
 
 	def embedding_def(self):
 		'''Initializes the variables of the model.'''
 
-		E, R, D = self.entities, self.relations, self.hiddensize
+		e, r, d = self.entities, self.relations, self.hiddensize
 
 		#Defining required parameters of the model, including embeddings of entities and relations, and normal vectors of planes
-		self.ent_embeddings = var("ent_embeddings", [E, D],
+		self.ent_embeddings = var("ent_embeddings", [e, d],
 				initializer=xavier(uniform=False))
-		self.rel_embeddings = var("rel_embeddings", [R, D],
+		self.rel_embeddings = var("rel_embeddings", [r, d],
 				initializer=xavier(uniform=False))
-		self.normal_vectors = var("normal_vectors", [R, D],
+		self.normal_vectors = var("normal_vectors", [r, d],
 				initializer=xavier(uniform=False))
 
 		self.parameter_lists = {
@@ -49,11 +49,11 @@ class TransH(Model):
 		'''Initializes the loss function.'''
 
 		def scores(h, t, r):
-			e = self._embeddings(h, t, r) # [B,N,D]
-			return sum(mean(abs(e), 1), 1, keep_dims=True) # [B]
+			e = self._embeddings(h, t, r) # [b,n,d]
+			return sum(mean(abs(e), 1), 1, keep_dims=True) # [b]
 
-		p = scores(*self.get_positive_instance(in_batch=True)) # [B]
-		n = scores(*self.get_negative_instance(in_batch=True)) # [B]
+		p = scores(*self.get_positive_instance(in_batch=True)) # [b]
+		n = scores(*self.get_negative_instance(in_batch=True)) # [b]
 
 		self.loss = sum(max(p - n + self.margin, 0)) # []
 
@@ -61,9 +61,9 @@ class TransH(Model):
 	def predict_def(self):
 		'''Initializes the prediction function.'''
 
-		self.embed = self._embeddings(*self.get_predict_instance()) # [B,D]
+		self.embed = self._embeddings(*self.get_predict_instance()) # [b,d]
 
-		self.predict = sum(abs(self.embed), 1) # [B]
+		self.predict = sum(abs(self.embed), 1) # [b]
 
 
 	def __init__(self, **config):

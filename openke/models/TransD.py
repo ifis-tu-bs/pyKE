@@ -6,41 +6,42 @@ from tensorflow import (get_variable as var,
                         nn)
 from tensorflow.contrib.layers import xavier_initializer as xavier
 at = nn.embedding_lookup
-from . import Model
+from .Base import ModelClass
 
 
-class TransD(Model):
+class TransD(ModelClass):
 
 
 	def _embeddings(self, h, t, r):
 		'''The term to embed triples.'''
 
-		he = at(self.ent_embeddings, h) # [.,D]
-		te = at(self.ent_embeddings, t) # [.,D]
-		re = at(self.rel_embeddings, r) # [.,D]
-		ht = at(self.ent_transfer, h) # [.,D]
-		tt = at(self.ent_transfer, t) # [.,D]
-		rt = at(self.rel_transfer, r) # [.,D]
+		he = at(self.ent_embeddings, h) # [.,d]
+		te = at(self.ent_embeddings, t) # [.,d]
+		re = at(self.rel_embeddings, r) # [.,d]
+		ht = at(self.ent_transfer, h) # [.,d]
+		tt = at(self.ent_transfer, t) # [.,d]
+		rt = at(self.rel_transfer, r) # [.,d]
 
 		def transfer(e, t):
 			return e + sum(e * t, 1, keep_dims=True) * rt
-		h = transfer(he, ht) # [.,D]
-		t = transfer(te, tt) # [.,D]
+		h = transfer(he, ht) # [.,d]
+		t = transfer(te, tt) # [.,d]
 
-		return h + re - t
+		return h + re - t # [.,d]
 
 
 	def embedding_def(self):
+		'''Initializes the variables of the model.'''
 
-		E, R, D = self.entities, self.relations, self.hiddensize
+		e, r, d = self.entities, self.relations, self.dimensions
 
-		self.ent_embeddings = var("ent_embeddings", [E, D],
+		self.ent_embeddings = var("ent_embeddings", [e, d],
 				initializer=xavier(uniform=False))
-		self.rel_embeddings = var("rel_embeddings", [R, D],
+		self.rel_embeddings = var("rel_embeddings", [r, d],
 				initializer=xavier(uniform=False))
-		self.ent_transfer = var("ent_transfer", [E, D],
+		self.ent_transfer = var("ent_transfer", [e, d],
 				initializer=xavier(uniform=False))
-		self.rel_transfer = var("rel_transfer", [R, D],
+		self.rel_transfer = var("rel_transfer", [r, d],
 				initializer=xavier(uniform=False))
 		self.parameter_lists = {
 				"ent_embeddings": self.ent_embeddings,
@@ -53,11 +54,11 @@ class TransD(Model):
 		'''Initializes the loss function.'''
 
 		def scores(h, t, r):
-			e = self._embeddings(h, t, r) # [B,N,D]
-			return sum(mean(abs(p), 1), 1, keep_dims=True) # [B]
+			e = self._embeddings(h, t, r) # [b,n,d]
+			return sum(mean(abs(p), 1), 1) # [b]
 
-		p = scores(*self.get_positive_instance(in_batch=True)) # [B]
-		n = scores(*self.get_negative_instance(in_batch=True)) # [B]
+		p = scores(*self.get_positive_instance(in_batch=True)) # [b]
+		n = scores(*self.get_negative_instance(in_batch=True)) # [b]
 
 		self.loss = sum(max(p - n + self.margin, 0)) # []
 
@@ -65,14 +66,14 @@ class TransD(Model):
 	def predict_def(self):
 		'''Initializes the prediction function.'''
 
-		self.embed = self._embeddings(*self.get_predict_instance()) # [B,D]
+		self.embed = self._embeddings(*self.get_predict_instance()) # [b,d]
 
-		self.predict = sum(abs(self.embed), 1, keep_dims=True) # [B]
+		self.predict = sum(abs(self.embed), 1, keep_dims=True) # [b]
 
 
 	def __init__(self, **config):
 		self.entities = config['entTotal']
 		self.relations = config['relTotal']
-		self.hiddensize = config['hidden_size']
+		self.dimensions = config['hidden_size']
 		self.margin = config['margin']
 		super().__init__(**config)

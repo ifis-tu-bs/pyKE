@@ -1,41 +1,69 @@
 #coding:utf-8
-import tensorflow as tf
-from . import Model
+from tensorflow import (get_variable as var,
+                        reduce_sum as sum,
+                        reduce_mean as mean,
+                        nn)
+from tensorflow.contrib.layers import xavier_initializer as xavier
+at, softplus = nn.embedding_lookup, nn.softplus
+from .Base import ModelClass
 
-class DistMult(Model):
 
-	def _calc(self, h, t, r):
-		return h * r * t
+class DistMult(ModelClass):
+
+
+	def _lookup(self, h, t, r):
+
+		h = at(self.ent_embeddings, h) # [.,d]
+		t = at(self.ent_embeddings, t) # [.,d]
+		r = at(self.rel_embeddings, r) # [.,d]
+		return h, t, r # [.,d]
+
+
+	def _embeddings(self, h, t, r):
+		'''The term to embed triples.'''
+
+		h, t, r = _lookup(h, t, r) # [.,d]
+		return h * r * t # [.,d]
+
 
 	def embedding_def(self):
-		config = self.get_config()
-		self.ent_embeddings = tf.get_variable(name = "ent_embeddings", shape = [config.entTotal, config.hidden_size], initializer = tf.contrib.layers.xavier_initializer(uniform = True))
-		self.rel_embeddings = tf.get_variable(name = "rel_embeddings", shape = [config.relTotal, config.hidden_size], initializer = tf.contrib.layers.xavier_initializer(uniform = True))
-		self.parameter_lists = {"ent_embeddings":self.ent_embeddings, \
-								"rel_embeddings":self.rel_embeddings}
+		'''Initializes the variables of the model.'''
+
+		e, r, d = self.entities, self.relations, self.dimensions
+
+		self.ent_embeddings = var('ent_embeddings', [e, d],
+				initializer=xavier(uniform=True))
+		self.rel_embeddings = var('rel_embeddings', [r, d],
+				initializer=xavier(uniform=True))
+		self.parameter_lists = {
+				'ent_embeddings': self.ent_embeddings,
+				'rel_embeddings': self.rel_embeddings}
+
+
 	def loss_def(self):
-		#Obtaining the initial configuration of the model
-		config = self.get_config()
-		#To get positive triples and negative triples for training
-		#To get labels for the triples, positive triples as 1 and negative triples as -1
-		#The shapes of h, t, r, y are (batch_size, 1 + negative_ent + negative_rel)
-		h, t, r = self.get_all_instance()
-		y = self.get_all_labels()
-		#Embedding entities and relations of triples
-		e_h = tf.nn.embedding_lookup(self.ent_embeddings, h)
-		e_t = tf.nn.embedding_lookup(self.ent_embeddings, t)
-		e_r = tf.nn.embedding_lookup(self.rel_embeddings, r)
-		#Calculating score functions for all positive triples and negative triples
-		res = tf.reduce_sum(self._calc(e_h, e_t, e_r), 1, keep_dims = False)
-		loss_func = tf.reduce_mean(tf.nn.softplus(- y * res))
-		regul_func = tf.reduce_mean(e_h ** 2) + tf.reduce_mean(e_t ** 2) + tf.reduce_mean(e_r ** 2)
-		#Calculating loss to get what the framework will optimize
-		self.loss =  loss_func + config.lmbda * regul_func
+		'''Initializes the loss function.'''
+
+		h, t, r = self._lookup(*self.get_all_instance()) # [bp+bn,d]
+		y = self.get_all_labels() # [bp+bn]
+
+		res = sum(h * r * t, 1) # [bp+bn]
+		loss_func = mean(softplus(-y * res)) # []
+		regul_func = mean(h ** 2) + mean(t ** 2) + mean(r ** 2) # []
+
+		self.loss =  loss_func + self._lambda * regul_func # []
+
 
 	def predict_def(self):
-		config = self.get_config()
-		predict_h, predict_t, predict_r = self.get_predict_instance()
-		predict_h_e = tf.nn.embedding_lookup(self.ent_embeddings, predict_h)
-		predict_t_e = tf.nn.embedding_lookup(self.ent_embeddings, predict_t)
-		predict_r_e = tf.nn.embedding_lookup(self.rel_embeddings, predict_r)
-		self.predict = -tf.reduce_sum(self._calc(predict_h_e, predict_t_e, predict_r_e), 1, keep_dims = True)
+		'''Initializes the prediction function.'''
+
+		self.embed = self._embeddings(*self.get_predict_instance()) # [n,d]
+
+		self.predict = -sum(self.embed, 1) # [n]
+
+
+	def __init__(self, **config):
+		self.entities = config['entTotal']
+		self.relations = config['relTotal']
+		self._lambda = config['lmbda']
+		self.dimensions = config['hidden_size']
+		super().__init__(config['batch_size'], config['negatives'])
