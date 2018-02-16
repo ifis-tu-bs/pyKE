@@ -1,5 +1,5 @@
 #coding:utf-8
-from tensorflow import Session, Graph, global_variables_initializer, variable_scope
+from tensorflow import Session, Graph, global_variables_initializer, variable_scope, nn
 from tensorflow.contrib.layers import xavier_initializer
 from tensorflow.python.training.saver import Saver
 from numpy import zeros, int64, float32, bool_
@@ -212,3 +212,12 @@ class Config(object):
 		with self._g.as_default():
 			with self._s.as_default():
 				return self._s.run(self._m.embed, feed_dict)
+
+
+	def ent_embed(self, entities):
+		feed_dict = {
+				self._m.predict_h: entities}
+		with self._g.as_default():
+			with self._s.as_default():
+				e = nn.embedding_lookup(self._m.ent_embeddings, self._m.predict_h)
+				return self._s.run(e, feed_dict)

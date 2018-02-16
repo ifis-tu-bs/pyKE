@@ -40,19 +40,19 @@ three complex numbers.'''
 
 		E, R, D = self.entities, self.relations, self.hiddensize
 
-		self.real_entity_embeddings = var("ent_re_embeddings", [E, D],
+		self.ent_embeddings = var("ent_re_embeddings", [E, D],
 				initializer=xavier(uniform=True))
-		self.real_relation_embeddings = var("rel_re_embeddings", [R, D],
+		self.rel_embeddings = var("rel_re_embeddings", [R, D],
 				initializer=xavier(uniform=True))
 		self.imaginary_entity_embeddings = var("ent_im_embeddings", [E, D],
 				initializer=xavier(uniform=True))
 		self.imaginary_relation_embeddings = var("rel_im_embeddings", [R, D],
 				initializer=xavier(uniform=True))
 		self.parameter_lists = {
-				"ent_re_embeddings": self.real_entity_embeddings,
-				"ent_im_embeddings": self.imaginary_entity_embeddings,
-				"rel_re_embeddings": self.real_relation_embeddings,
-				"rel_im_embeddings": self.imaginary_relation_embeddings}
+				"ent_re_embeddings": self.ent_embeddings,
+				"ent_im_embeddings": self.ent_Im_embeddings,
+				"rel_re_embeddings": self.rel_embeddings,
+				"rel_im_embeddings": self.rel_Im_embeddings}
 
 
 	def loss_def(self):
