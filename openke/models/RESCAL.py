@@ -3,7 +3,8 @@ from tensorflow import (get_variable as var,
                         reduce_sum as sum,
                         reduce_mean as mean,
                         maximum as max,
-                        matmul, nn)
+                        expand_dims as expand,
+                        squeeze, matmul, nn)
 from tensorflow.contrib.layers import xavier_initializer as xavier
 at = nn.embedding_lookup
 from .Base import ModelClass
@@ -16,11 +17,12 @@ class RESCAL(ModelClass):
 	def _embeddings(self, h, t, r):
 		'''The term to embed triples.'''
 
+		ndims = t.shape.ndims
 		h = at(self.ent_embeddings, h) # [.,d]
-		t = at(self.ent_embeddings, t) # [.,d]
+		t = expand(at(self.ent_embeddings, t), ndims) # [.,d,1]
 		r = at(self.rel_matrices, r) # [.,d,d]
 
-		return h * matmul(r, t) # [.,d]
+		return h * squeeze(matmul(r, t), [ndims]) # [.,d]
 
 
 	def embedding_def(self):
