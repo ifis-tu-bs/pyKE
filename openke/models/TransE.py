@@ -28,9 +28,9 @@ class TransE(ModelClass):
 		e, r, d = self.entities, self.relations, self.dimensions
 
 		self.ent_embeddings = var("ent_embeddings", [e, d],
-				initializer=xavier(uniform = False))
+				initializer=xavier(uniform=False))
 		self.rel_embeddings = var("rel_embeddings", [r, d],
-				initializer=xavier(uniform = False))
+				initializer=xavier(uniform=False))
 		self.parameter_lists = {
 				"ent_embeddings": self.ent_embeddings,
 				"rel_embeddings": self.rel_embeddings}
@@ -54,7 +54,7 @@ class TransE(ModelClass):
 
 		self.embed = self._embeddings(*self.get_predict_instance()) # [b,d]
 
-		self.predict = mean(abs(e), 1) # [b]
+		self.predict = mean(abs(self.embed), 1) # [b]
 
 
 	def __init__(self, **config):

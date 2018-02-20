@@ -46,7 +46,7 @@ class TransR(ModelClass):
 
 		def scores(h, t, r):
 			e = self._embeddings(h, t, r) # [b,n,k]
-			return sum(mean(p, 1), 1) # [b]
+			return sum(mean(e, 1), 1) # [b]
 
 		p = scores(*self.get_positive_instance(in_batch=True)) # [b]
 		n = scores(*self.get_negative_instance(in_batch=True)) # [b]

@@ -57,7 +57,7 @@ class RESCAL(ModelClass):
 
 		self.embed = self._embeddings(*self.get_predict_instance()) # [b,d]
 
-		self.predict = -sum(e, 1) # [b]
+		self.predict = -sum(self.embed, 1) # [b]
 
 
 	def __init__(self, **config):
