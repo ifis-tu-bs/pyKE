@@ -1,59 +1,8 @@
 #coding:utf-8
-from tensorflow import (Session, Graph,
-                        name_scope, variable_scope,
-                        transpose, reshape, placeholder,
-                        int64, float32,
-                        global_variables_initializer, nn
-at = nn.embedding_lookup
-from tensorflow.contrib.layers import xavier_initializer as xavier
-from tensorflow.python.training.saver import Saver
+from tensorflow import name_scope, transpose, reshape, placeholder, int64, float32
 
 
 class Model(object):
-
-
-	def train(self, head, tail, label, objective):
-		'''Performs one unit of training on a batch of graded triples.'''
-		feed_dict = {
-				self.batch_h: head,
-				self.batch_t: tail,
-				self.batch_r: label,
-				self.batch_y: objective}
-		with self._graph.as_default():
-			with self._session.as_default():
-				return self._session.run([self._train, self.loss], feed_dict)
-
-
-	def predict(self, head, tail, label):
-		'''Evaluates each triple.'''
-		feed_dict = {
-				self.predict_h: head,
-				self.predict_t: tail,
-				self.predict_r: label}
-		with self._graph.as_default():
-			with self._session.as_default():
-				return self._session.run(self.predict, feed_dict)
-
-
-	def rel_embed(self, head, tail, label):
-		'''Embeds each triple into semantic space.'''
-		feed_dict = {
-				self.predict_h: head,
-				self.predict_t: tail,
-				self.predict_r: label}
-		with self._graph.as_default():
-			with self._session.as_default():
-				return self._session.run(self.embed, feed_dict)
-
-
-	def ent_embed(self, entities):
-		'''Embeds each entity into semantic space.'''
-		feed_dict = {
-				self.predict_h: entities}
-		with self._graph.as_default():
-			with self._session.as_default():
-				e = at(self.ent_embeddings, self.predict_h)
-				return self._session.run(e, feed_dict)
 
 
 	def get_positive_instance(self, in_batch=True):
@@ -120,61 +69,14 @@ class Model(object):
 		raise NotImplementedError('prediction impossible without model')
 
 
-	def __getitem__(self, name):
-		'''Returns one of the object's parameters.'''
-		if name not in self._parameters:
-			raise KeyError('model has no such parameter')
-		with self._graph.as_default():
-			with self._session.as_default():
-				return self._session.run(self._parameters[name])
-
-
-	def __setitem__(self, name, tensor):
-		'''Updates one of the object's parameters.'''
-		if name not in self._parameters:
-			raise KeyError('model has no such parameter')
-		with self._graph.as_default():
-			with self._session.as_default():
-				self.parameter_lists[name].assign(tensor).eval()
-
-
-	def save(self, filename=None):
-		'''Attempts to persistently store the model's parameters.'''
-		if filename is not None:
-			self._filename = filename
-		with self._graph.as_default():
-			with self._session.as_default():
-				self._saver.save(self._session, self._filename)
-
-
-	def restore(self, filename=None):
-		'''Loads the model's parameters from a file.'''
-		if filename is not None:
-			self._filename = filename
-		with self._graph.as_default():
-			with self._session.as_default():
-				self._saver.restore(self._session, self._filename)
-
-
 	def __init__(self, **config):
 		self.batchsize = config['batch_size']
 		self.negatives = config['negative_ent'] + config['negative_rel']
-		self._optimizer = config['optimizer']
-		grads_and_vars = self._optimizer.compute_gradients(self._m.loss)
-		self._train = self._optimizer.apply_gradients(grads_and_vars)
-		self._graph = Graph()
-		with self._graph.as_default():
-			self._session = Session()
-			with self._session.as_default():
-				with variable_scope('model', reuse=None,
-						initializer=xavier(uniform=True)):
-					with name_scope("input"):
-						self.input_def()
-					with name_scope("embedding"):
-						self.embedding_def()
-					with name_scope("loss"):
-						self.loss_def()
-					with name_scope("predict"):
-						self.predict_def()
-				self._saver = Saver()
-				self._session.run(global_variables_initializer())
+		with name_scope("input"):
+			self.input_def()
+		with name_scope("embedding"):
+			self.embedding_def()
+		with name_scope("loss"):
+			self.loss_def()
+		with name_scope("predict"):
+			self.predict_def()
