@@ -148,13 +148,13 @@ class Config(object):
 			self._m.batch_r: self.batch_r,
 			self._m.batch_y: self.batch_y
 		}
-		self._l.randReset(workers, seed)
 		sampling = self._l.bernSampling if bern else self._l.sampling
 		with self._g.as_default():
 			with self._s.as_default():
 				self.parametername and self._restore(self.parametername)
 				for t in range(times):
 					loss = 0.0
+					self._l.randReset(workers, seed)
 					for batch in range(self.nbatches):
 						sampling(self.batch_h_addr, self.batch_t_addr,
 								self.batch_r_addr, self.batch_y_addr, self.batch_size,
