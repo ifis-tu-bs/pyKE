@@ -2,7 +2,7 @@
 from tensorflow import name_scope, transpose, reshape, placeholder, int64, float32
 
 
-class Model(object):
+class ModelClass(object):
 
 
 	def get_positive_instance(self, in_batch=True):
