@@ -50,7 +50,7 @@ class TransH(ModelClass):
 
 		def scores(h, t, r):
 			e = self._embeddings(h, t, r) # [b,n,d]
-			return sum(mean(abs(e), 1), 1, keep_dims=True) # [b]
+			return mean(sum(abs(e), 2), 1) # [b]
 
 		p = scores(*self.get_positive_instance(in_batch=True)) # [b]
 		n = scores(*self.get_negative_instance(in_batch=True)) # [b]

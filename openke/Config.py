@@ -141,7 +141,7 @@ class Config(object):
 				self._s.run(global_variables_initializer())
 
 
-	def train(self, times=1, bern=True, log=None, workers=1, seed=1):
+	def train(self, times=1, bern=True, log=None, workers=1, seed=1, minilog=None):
 		feed_dict = {
 			self._m.batch_h: self.batch_h,
 			self._m.batch_t: self.batch_t,
@@ -160,6 +160,7 @@ class Config(object):
 								self.batch_r_addr, self.batch_y_addr, self.batch_size,
 								self.negative_ent, self.negative_rel, workers)
 						loss += self._s.run([self.train_op, self._m.loss], feed_dict)[1]
+						minilog and minilog(t, loss)
 					log and log(t, loss)
 					if self.export_steps and t % self.export_steps == 0:
 						self.graphname and self._save(self.graphname)

@@ -17,12 +17,11 @@ class RESCAL(ModelClass):
 	def _embeddings(self, h, t, r):
 		'''The term to embed triples.'''
 
-		ndims = t.shape.ndims
 		h = at(self.ent_embeddings, h) # [.,d]
-		t = expand(at(self.ent_embeddings, t), ndims) # [.,d,1]
+		t = expand(at(self.ent_embeddings, t), -1) # [.,d,1]
 		r = at(self.rel_matrices, r) # [.,d,d]
 
-		return h * squeeze(matmul(r, t), [ndims]) # [.,d]
+		return h * squeeze(matmul(r, t), [-1]) # [.,d]
 
 
 	def embedding_def(self):
@@ -44,7 +43,7 @@ class RESCAL(ModelClass):
 
 		def scores(h, t, r):
 			e = self._embeddings(h, t, r) # [b,n,d]
-			return sum(mean(e, 1), 1, keep_dims=True) # [b]
+			return mean(sum(e, 2), 1) # [b]
 
 		p = scores(*self.get_positive_instance(in_batch=True)) # [b]
 		n = scores(*self.get_negative_instance(in_batch=True)) # [b]

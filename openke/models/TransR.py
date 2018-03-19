@@ -20,7 +20,7 @@ class TransR(ModelClass):
 		r = at(self.rel_embeddings, r) # [.,k,1]
 		h = matmul(m, h) # [.,k,1]
 		t = matmul(m, t) # [.,k,1]
-		return squeeze(h + r - t, [r.shape.ndims-1]) # [.,k]
+		return squeeze(h + r - t, [-1]) # [.,k]
 
 
 	def embedding_def(self):
@@ -46,7 +46,7 @@ class TransR(ModelClass):
 
 		def scores(h, t, r):
 			e = self._embeddings(h, t, r) # [b,n,k]
-			return sum(mean(e, 1), 1) # [b]
+			return mean(sum(e, 2), 1) # [b]
 
 		p = scores(*self.get_positive_instance(in_batch=True)) # [b]
 		n = scores(*self.get_negative_instance(in_batch=True)) # [b]
