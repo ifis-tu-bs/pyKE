@@ -13,13 +13,12 @@ class ComplEx(ModelClass):
 
 	def _lookup(self, h, t, r):
 		'''Gets the variables concerning a fact.'''
-		assert h.shape == t.shape == r.shape
-		hre = at(self.real_entity_embeddings, h)
-		tre = at(self.real_entity_embeddings, t)
-		rre = at(self.real_relation_embeddings, r)
-		him = at(self.imaginary_entity_embeddings, h)
-		tim = at(self.imaginary_entity_embeddings, t)
-		rim = at(self.imaginary_relation_embeddings, r)
+		hre = at(self.ent_embeddings, h)
+		tre = at(self.ent_embeddings, t)
+		rre = at(self.rel_embeddings, r)
+		him = at(self.ent_Im_embeddings, h)
+		tim = at(self.ent_Im_embeddings, t)
+		rim = at(self.rel_Im_embeddings, r)
 		return hre, him, tre, tim, rre, rim
 
 
@@ -43,9 +42,9 @@ three complex numbers.'''
 				initializer=xavier(uniform=True))
 		self.rel_embeddings = var("rel_re_embeddings", [R, D],
 				initializer=xavier(uniform=True))
-		self.imaginary_entity_embeddings = var("ent_im_embeddings", [E, D],
+		self.ent_Im_embeddings = var("ent_im_embeddings", [E, D],
 				initializer=xavier(uniform=True))
-		self.imaginary_relation_embeddings = var("rel_im_embeddings", [R, D],
+		self.rel_Im_embeddings = var("rel_im_embeddings", [R, D],
 				initializer=xavier(uniform=True))
 		self.parameter_lists = {
 				"ent_re_embeddings": self.ent_embeddings,
@@ -81,4 +80,4 @@ three complex numbers.'''
 		self.relations = config['relTotal']
 		self._lambda = config['lmbda']
 		self.hiddensize = config['hidden_size']
-		super().__init__(config['batch_size'], config['negatives'])
+		super().__init__(**config)
