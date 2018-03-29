@@ -1,35 +1,21 @@
-import config
-import models
-import tensorflow as tf
-import numpy as np
+from openke import Config
+from openke.models import TransE
 
-#Input training files from benchmarks/FB15K/ folder.
-con = config.Config()
-#True: Input test files from the same folder.
-con.set_in_path("./benchmarks/FB15K/")
+c = Config()
 
-con.set_test_flag(True)
-con.set_work_threads(4)
-con.set_train_times(500)
-con.set_nbatches(100)
-con.set_alpha(0.001)
-con.set_margin(1.0)
-con.set_bern(0)
-con.set_dimension(50)
-con.set_ent_neg_rate(1)
-con.set_rel_neg_rate(0)
-con.set_opt_method("SGD")
+#   Input training files from benchmarks/FB15K/ folder.
+with open("./benchmarks/FB15K/entity2id.txt") as f:
+	E = int(f.readline())
+with open("./benchmarks/FB15K/relation2id.txt") as f:
+	R = int(f.readline())
+c.init("./benchmarks/FB15K/train2id.txt", E, R, batch_count=100, negative_entities=1)
 
-#Models will be exported via tf.Saver() automatically.
-con.set_export_files("./res/model.vec.tf", 0)
-#Model parameters will be exported to json files automatically.
-con.set_out_files("./res/embedding.vec.json")
-#Initialize experimental settings.
-con.init()
-#Set the knowledge embedding model
-con.set_model(models.TransE)
-#Train the model.
-con.run()
-#To test models after training needs "set_test_flag(True)".
-con.test()
+#   Models will be exported via tf.Saver() automatically.
+c.set_export("./res/model.vec.tf", None, 1)
+
+#   Set the knowledge embedding model
+from tensorflow.python.training.gradient_descent import GradientDescentOptimizer as SGD
+c.set_model(TransE, SGD(.001), hidden_size=50, margin=1.0)
+#   Train the model.
+c.train(10, bern=False, workers=4)
 

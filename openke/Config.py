@@ -120,6 +120,10 @@ class Config(object):
 
 
 	def set_model(self, model, optimizer, **kwargs):
+		if 'entTotal' not in kwargs:
+			kwargs['entTotal'] = self.entTotal
+		if 'relTotal' not in kwargs:
+			kwargs['relTotal'] = self.relTotal
 		if 'batch_size' not in kwargs:
 			kwargs['batch_size'] = self.batch_size
 		if 'batch_seq_size' not in kwargs:
