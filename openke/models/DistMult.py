@@ -8,62 +8,63 @@ at, softplus = nn.embedding_lookup, nn.softplus
 from .Base import ModelClass
 
 
+def _lookup(h, t, l):
+
+	ent = var('ent_embeddings')
+	rel = var('rel_embeddings')
+
+	return at(ent, h), at(ent, t), at(rel, l) # [.,d]
+
+
+def _term(h, t, l):
+
+	return -sum(h * l * t, -1)
+
+
+def _score(h, t, l):
+	'''The term to score triples.'''
+
+	return _term(*_lookup(h, t, l)) # [.]
+
+
 class DistMult(ModelClass):
 
 
-	def _lookup(self, h, t, r):
-
-		h = at(self.ent_embeddings, h) # [.,d]
-		t = at(self.ent_embeddings, t) # [.,d]
-		r = at(self.rel_embeddings, r) # [.,d]
-		return h, t, r # [.,d]
-
-
-	def _embeddings(self, h, t, r):
-		'''The term to embed triples.'''
-
-		h, t, r = _lookup(h, t, r) # [.,d]
-		return h * r * t # [.,d]
-
-
-	def embedding_def(self):
+	def _embedding_def(self):
 		'''Initializes the variables of the model.'''
 
-		e, r, d = self.entities, self.relations, self.dimensions
+		e, r, d = self.base[0], self.base[1], self.dimension[0]
 
-		self.ent_embeddings = var('ent_embeddings', [e, d],
-				initializer=xavier(uniform=True))
-		self.rel_embeddings = var('rel_embeddings', [r, d],
-				initializer=xavier(uniform=True))
-		self.parameter_lists = {
-				'ent_embeddings': self.ent_embeddings,
-				'rel_embeddings': self.rel_embeddings}
+		ent = var('ent_embeddings', [e, d])
+		rel = var('rel_embeddings', [r, d])
+
+		yield 'ent_embeddings', ent
+		yield 'rel_embeddings', rel
+
+		self._entity = at(ent, self.predict_h)
+		self._relation = at(rel, self.predict_l)
 
 
-	def loss_def(self):
+	def _loss_def(self):
 		'''Initializes the loss function.'''
 
-		h, t, r = self._lookup(*self.get_all_instance()) # [bp+bn,d]
-		y = self.get_all_labels() # [bp+bn]
+		h, t, l = _lookup(*self._all_instance()) # [bp+bn,d]
+		y = self._all_labels() # [bp+bn]
 
-		res = sum(h * r * t, 1) # [bp+bn]
-		loss_func = mean(softplus(-y * res)) # []
-		regul_func = mean(h ** 2) + mean(t ** 2) + mean(r ** 2) # []
+		s = _term(h, t, l) # [bp+bn]
+		loss = mean(softplus(y * s)) # []
+		reg = mean(h ** 2) + mean(t ** 2) + mean(l ** 2) # []
 
-		self.loss =  loss_func + self._lambda * regul_func # []
+		return loss + self.weight * reg # []
 
 
-	def predict_def(self):
+	def _predict_def(self):
 		'''Initializes the prediction function.'''
 
-		self.embed = self._embeddings(*self.get_predict_instance()) # [n,d]
-
-		self.predict = -sum(self.embed, 1) # [n]
+		return _score(*self._predict_instance()) # [b]
 
 
 	def __init__(self, **config):
-		self.entities = config['entTotal']
-		self.relations = config['relTotal']
-		self._lambda = config['lmbda']
-		self.dimensions = config['hidden_size']
-		super().__init__(config['batch_size'], config['negatives'])
+		self.dimension = config['hidden_size'],
+		self.weight = config['lmbda']
+		super().__init__(**config)

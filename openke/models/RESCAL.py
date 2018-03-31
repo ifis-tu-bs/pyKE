@@ -5,63 +5,58 @@ from tensorflow import (get_variable as var,
                         maximum as max,
                         expand_dims as expand,
                         squeeze, matmul, nn)
-from tensorflow.contrib.layers import xavier_initializer as xavier
 at = nn.embedding_lookup
 from .Base import ModelClass
 #FIXME replace matmul with PEP465 @-operator when upgrading to Python 3.5
 
 
+def _score(h, t, r):
+	'''The term to score triples.'''
+
+	h = at(var('ent_embeddings'), h) # [.,d]
+	t = expand(at(var('ent_embeddings'), t), -1) # [.,d,1]
+	r = at(var('rel_matrices'), r) # [.,d,d]
+
+	return -sum(h * squeeze(matmul(r, t), [-1]), -1) # [.]
+
+
 class RESCAL(ModelClass):
 
 
-	def _embeddings(self, h, t, r):
-		'''The term to embed triples.'''
-
-		h = at(self.ent_embeddings, h) # [.,d]
-		t = expand(at(self.ent_embeddings, t), -1) # [.,d,1]
-		r = at(self.rel_matrices, r) # [.,d,d]
-
-		return h * squeeze(matmul(r, t), [-1]) # [.,d]
-
-
-	def embedding_def(self):
+	def _embedding_def(self):
 		'''Initializes the variables of the model.'''
 
-		e, r, d = self.entities, self.relations, self.dimensions
+		e, r, d = self.base[0], self.base[1], self.dimension[0]
 
-		self.ent_embeddings = var("ent_embeddings", [e, d],
-				initializer=xavier(uniform=False))
-		self.rel_matrices = var("rel_matrices", [r, d, d],
-				initializer=xavier(uniform=False))
-		self.parameter_lists = {
-				"ent_embeddings": self.ent_embeddings,
-				"rel_matrices": self.rel_matrices}
+		ent = var('ent_embeddings', [e,d])
+		rel = var('rel_matrices', [r,d,d])
+
+		yield 'ent_embeddings', ent
+		yield 'rel_matrices', rel
+
+		self._entity = at(ent, self.predict_h)
 
 
-	def loss_def(self):
+	def _loss_def(self):
 		'''Initializes the loss function.'''
 
 		def scores(h, t, r):
-			e = self._embeddings(h, t, r) # [b,n,d]
-			return mean(sum(e, 2), 1) # [b]
+			s = _score(h, t, r) # [b,n]
+			return mean(s, 1) # [b]
 
-		p = scores(*self.get_positive_instance(in_batch=True)) # [b]
-		n = scores(*self.get_negative_instance(in_batch=True)) # [b]
+		p = scores(*self._positive_instance(in_batch=True)) # [b]
+		n = scores(*self._negative_instance(in_batch=True)) # [b]
 
-		self.loss = sum(max(n - p + self.margin, 0)) # []
-	
+		return sum(max(p - n + self.margin, 0)) # []
 
-	def predict_def(self):
+
+	def _predict_def(self):
 		'''Initializes the prediction function.'''
 
-		self.embed = self._embeddings(*self.get_predict_instance()) # [b,d]
-
-		self.predict = -sum(self.embed, 1) # [b]
+		return _score(*self._predict_instance()) # [b]
 
 
 	def __init__(self, **config):
-		self.entities = config['entTotal']
-		self.relations = config['relTotal']
-		self.dimensions = config['hidden_size']
+		self.dimension = config['hidden_size'],
 		self.margin = config['margin']
 		super().__init__(**config)

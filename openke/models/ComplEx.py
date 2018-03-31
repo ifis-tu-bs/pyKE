@@ -3,81 +3,76 @@ from tensorflow import (get_variable as var,
                         reduce_sum as sum,
                         reduce_mean as mean,
                         nn)
-from tensorflow.contrib.layers import xavier_initializer as xavier
 at, softplus = nn.embedding_lookup, nn.softplus
 from .Base import ModelClass
+
+
+def _term(hRe, hIm, tRe, tIm, rRe, rIm):
+	'''Returns the real part of the ComplEx embedding of a fact described by
+three complex numbers.'''
+
+	return sum(hRe * tRe * rRe + hIm * tIm * rRe + hRe * tIm * rIm - hIm * tRe * rIm, -1)
+
+
+def _lookup(h, t, r):
+	'''Gets the variables concerning a fact.'''
+
+	eRe = var('ent_re_embeddings')
+	rRe = var('rel_re_embeddings')
+	eIm = var('ent_im_embeddings')
+	rIm = var('rel_im_embeddings')
+
+	return at(eRe, h), at(eRe, t), at(rRe, r), at(eIm, h), at(eIm, t), at(rIm, r)
+
+
+def _score(h, t, r):
+	'''The term to embed triples.'''
+
+	return _term(*_lookup(h, t, r)) # [.]
 
 
 class ComplEx(ModelClass):
 
 
-	def _lookup(self, h, t, r):
-		'''Gets the variables concerning a fact.'''
-		hre = at(self.ent_embeddings, h)
-		tre = at(self.ent_embeddings, t)
-		rre = at(self.rel_embeddings, r)
-		him = at(self.ent_Im_embeddings, h)
-		tim = at(self.ent_Im_embeddings, t)
-		rim = at(self.rel_Im_embeddings, r)
-		return hre, him, tre, tim, rre, rim
-
-
-	def _term(self, hre, him, tre, tim, rre, rim):
-		'''Returns the real part of the ComplEx embedding of a fact described by
-three complex numbers.'''
-		return hre * tre * rre + him * tim * rre + hre * tim * rim - him * tre * rim
-
-
-	def _embeddings(self, h, t, r):
-		'''The term to embed triples.'''
-		return self._term(*self._lookup(h, t, r))
-
-
-	def embedding_def(self):
+	def _embedding_def(self):
 		'''Initializes the variables.'''
 
-		E, R, D = self.entities, self.relations, self.hiddensize
+		e, r, d = self.base[0], self.base[1], self.dimension[0]
 
-		self.ent_embeddings = var("ent_re_embeddings", [E, D],
-				initializer=xavier(uniform=True))
-		self.rel_embeddings = var("rel_re_embeddings", [R, D],
-				initializer=xavier(uniform=True))
-		self.ent_Im_embeddings = var("ent_im_embeddings", [E, D],
-				initializer=xavier(uniform=True))
-		self.rel_Im_embeddings = var("rel_im_embeddings", [R, D],
-				initializer=xavier(uniform=True))
-		self.parameter_lists = {
-				"ent_re_embeddings": self.ent_embeddings,
-				"ent_im_embeddings": self.ent_Im_embeddings,
-				"rel_re_embeddings": self.rel_embeddings,
-				"rel_im_embeddings": self.rel_Im_embeddings}
+		eRe = var("ent_re_embeddings", [e,d])
+		eIm = var("ent_im_embeddings", [e,d])
+		rRe = var("rel_re_embeddings", [r,d])
+		rIm = var("rel_im_embeddings", [r,d])
+
+		yield 'ent_re_embeddings', eRe
+		yield 'ent_im_embeddings', eIm
+		yield 'rel_re_embeddings', rRe
+		yield 'rel_im_embeddings', rIm
+
+		self._entity = at(eRe, self.predict_h)
+		self._relation = at(rRe, self.predict_l)
 
 
-	def loss_def(self):
+	def _loss_def(self):
 		'''Initializes the loss function.'''
 
-		hre, him, tre, tim, rre, rim = self._lookup(*self.get_all_instance())
-		y = self.get_all_labels()
+		hRe, hIm, tRe, tIm, lRe, lIm = _lookup(*self._all_instance()) # [b,d]
+		y = self._all_labels() # [b]
 
-		e = self._term(hre, him, tre, tim, rre, rim)
-		res = sum(e, 1)
-		loss_func = mean(softplus(- y * res), 0)
-		regul_func = mean(hre ** 2) + mean(tre ** 2) + mean(him ** 2) + mean(tim ** 2) + mean(rre ** 2) + mean(rim ** 2)
+		s = _term(hRe, hIm, tRe, tIm, lRe, lIm) # [b]
+		loss = mean(softplus(- y * s), 0) # []
+		reg = mean(hRe ** 2) + mean(hIm ** 2) + mean(tRe ** 2) + mean(tIm ** 2) + mean(lRe ** 2) + mean(lIm ** 2)
 
-		self.loss =  loss_func + self._lambda * regul_func
+		return loss + self.weight * reg # []
 
 
-	def predict_def(self):
+	def _predict_def(self):
 		'''Initializes the prediction function.'''
 
-		self.embed = self._embeddings(*self.get_predict_instance())
-
-		self.predict = -sum(self.embed, 1, keep_dims=True)
+		return _score(*self._predict_instance())
 
 
 	def __init__(self, **config):
-		self.entities = config['entTotal']
-		self.relations = config['relTotal']
-		self._lambda = config['lmbda']
-		self.hiddensize = config['hidden_size']
+		self.weight = config['lmbda']
+		self.dimension = config['hidden_size'],
 		super().__init__(**config)
