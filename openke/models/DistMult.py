@@ -68,3 +68,7 @@ class DistMult(ModelClass):
 		self.dimension = config['hidden_size'],
 		self.weight = config['lmbda']
 		super().__init__(**config)
+
+
+	def __str__(self):
+		return '{}-{}'.format(type(self).__name__, self.dimension)
