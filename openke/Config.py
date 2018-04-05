@@ -20,28 +20,37 @@ class Config(object):
 		self._l.randReset.argtypes = [c_int64, c_int64]
 
 
-	def init(self, filename, entities, relations, batch_count=1,
+	def init(self, filename,
+			entities, relations,
+			batchcount=None, batchsize=None,
 			negative_entities=0, negative_relations=0):
-		self.negative_ent, self.negative_rel = negative_entities, negative_relations
+
 		self.entTotal, self.relTotal = entities, relations
 		self.open(filename)
 		self.trainTotal = self._l.getTrainTotal()
-		self.nbatches = batch_count
-		self.batch_size = self.trainTotal // batch_count
-		self.batch_seq_size = self.batch_size * (1 + self.negative_ent + self.negative_rel)
-		self.batch_h = zeros(self.batch_seq_size, dtype=int64)
-		self.batch_t = zeros(self.batch_seq_size, dtype=int64)
-		self.batch_r = zeros(self.batch_seq_size, dtype=int64)
-		self.batch_y = zeros(self.batch_seq_size, dtype=float32)
+		self.baseshape = entities, relations
+
+		if batchcount is None:
+			from math import ceil
+			batchcount = ceil(triples / batchsize)
+		else:
+			assert batchsize is None
+			batchsize = triples // batchcount
+		self.batchcount = batchcount
+
+		N = negative_entities + negative_relations
+		self.negative_ent, self.negative_rel = negative_entities, negative_relations
+		self.batchshape = batchsize, N
+
+		S = batchsize * (1 + N)
+		self.batch_h = zeros(S, dtype=int64)
+		self.batch_t = zeros(S, dtype=int64)
+		self.batch_r = zeros(S, dtype=int64)
+		self.batch_y = zeros(S, dtype=float32)
 		self.batch_h_addr = c_array(self.batch_h)
 		self.batch_t_addr = c_array(self.batch_t)
 		self.batch_r_addr = c_array(self.batch_r)
 		self.batch_y_addr = c_array(self.batch_y)
-
-
-	def model(self, model, optimizer, **kwargs):
-		return model(optimizer, (self.entTotal, self.relTotal),\
-				(self.batch_size, self.negative_ent + self.negative_rel), **kwargs)
 
 
 	def train(self, model, epochs=1, bern=True, workers=1, seed=1,
@@ -50,7 +59,7 @@ class Config(object):
 		for epoch in range(epochs):
 			loss = 0
 			self._l.randReset(workers, seed)
-			for batch in range(self.nbatches):
+			for batch in range(self.batchcount):
 				sampling(self.batch_h_addr, self.batch_t_addr,
 						self.batch_r_addr, self.batch_y_addr, self.batch_size,
 						self.negative_ent, self.negative_rel, workers)
