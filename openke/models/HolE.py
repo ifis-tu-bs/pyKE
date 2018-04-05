@@ -59,10 +59,10 @@ class HolE(ModelClass):
 		return _score(*self._predict_instance()) # [b]
 
 
-	def __init__(self, **config):
-		self.dimension = config['hidden_size'],
-		self.margin = config['margin']
-		super().__init__(**config)
+	def __init__(self, dimension, margin, baseshape, batchshape, optimizer=None):
+		self.dimension = dimension,
+		self.margin = margin
+		super().__init__(baseshape, batchshape, optimizer=optimizer)
 
 
 	def __str__(self):

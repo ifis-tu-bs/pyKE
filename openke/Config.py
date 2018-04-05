@@ -39,20 +39,9 @@ class Config(object):
 		self.batch_y_addr = c_array(self.batch_y)
 
 
-	def model(self, model, **kwargs):
-		if 'entTotal' not in kwargs:
-			kwargs['entTotal'] = self.entTotal
-		if 'relTotal' not in kwargs:
-			kwargs['relTotal'] = self.relTotal
-		if 'batch_size' not in kwargs:
-			kwargs['batch_size'] = self.batch_size
-		if 'batch_seq_size' not in kwargs:
-			kwargs['batch_seq_size'] = self.batch_seq_size
-		if 'negative_ent' not in kwargs:
-			kwargs['negative_ent'] = self.negative_ent
-		if 'negative_rel' not in kwargs:
-			kwargs['negative_rel'] = self.negative_rel
-		return model(**kwargs)
+	def model(self, model, optimizer, **kwargs):
+		return model(optimizer, (self.entTotal, self.relTotal),\
+				(self.batch_size, self.negative_ent + self.negative_rel), **kwargs)
 
 
 	def train(self, model, epochs=1, bern=True, workers=1, seed=1,

@@ -95,12 +95,27 @@ class ModelClass(object):
 		raise NotImplementedError('prediction impossible without model')
 
 
-	def __init__(self, **config):
-		self.batchsize = config['batch_size']
-		self.negatives = config['negative_ent'] + config['negative_rel']
-		self.base = config['entTotal'], config['relTotal']
-		optimizer = config['optimizer']
+	def __init__(self, baseshape, batchshape, optimizer=None):
+		'''Creates a new model.
+
+	baseshape
+A pair of numbers describing the amount of entities and relations.
+
+	batchshape
+A pair of numbers describing the amount of training statements per iteration and the amount of variants per statement.
+The first variant is considered true while the rest is considered false.
+
+	optimizer
+The optimization algorithm used to approximate the optimal model in each iteration.
+default: Stochastic Gradient Descent with learning factor of 1%.'''
+
+		self.base = baseshape
+		self.batchsize = batchshape[0]
+		self.negatives = batchshape[1] - 1
 		self.__parameters = dict()
+		if optimizer is None:
+			import tensorflow
+			optimizer = tensorflow.train.GradientDescentOptimizer(.01)
 		B, N = self.batchsize, self.negatives
 		S = B * (N + 1)
 		self.__graph = Graph()

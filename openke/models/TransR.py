@@ -60,10 +60,11 @@ class TransR(ModelClass):
 		return _score(*self._predict_instance()) # [b]
 
 
-	def __init__(self, **config):
-		self.dimension = config['ent_size'], config['rel_size']
-		self.margin = config['margin']
-		super().__init__(**config)
+	def __init__(self, edimension, rdimension, margin, baseshape, batchshape,\
+			optimizer=None):
+		self.dimension = edimension, rdimension
+		self.margin = margin
+		super().__init__(baseshape, batchshape, optimizer=optimizer)
 
 
 	def __str__(self):

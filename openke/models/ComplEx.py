@@ -72,10 +72,11 @@ class ComplEx(ModelClass):
 		return _score(*self._predict_instance())
 
 
-	def __init__(self, **config):
-		self.weight = config['lmbda']
-		self.dimension = config['hidden_size'],
-		super().__init__(**config)
+	def __init__(self, dimension, weight, baseshape, batchshape,\
+			optimizer=None):
+		self.dimension = dimension,
+		self.weight = weight
+		super().__init__(baseshape, batchshape, optimizer=optimizer)
 
 
 	def __str__(self):
