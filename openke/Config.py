@@ -27,20 +27,23 @@ class Config(object):
 
 		self.entTotal, self.relTotal = entities, relations
 		self.open(filename)
-		self.trainTotal = self._l.getTrainTotal()
+		triples = self._l.getTrainTotal()
+		self.trainTotal = triples
 		self.baseshape = entities, relations
 
-		if batchcount is None:
+		if batchcount is not None:
+			assert batchsize is None
+			batchsize = triples // batchcount
+		elif batchsize is not None:
 			from math import ceil
 			batchcount = ceil(triples / batchsize)
 		else:
-			assert batchsize is None
-			batchsize = triples // batchcount
+			batchsize, batchcount = 1, triples
 		self.batchcount = batchcount
 
 		N = negative_entities + negative_relations
 		self.negative_ent, self.negative_rel = negative_entities, negative_relations
-		self.batchshape = batchsize, N
+		self.batchshape = batchsize, 1 + N
 
 		S = batchsize * (1 + N)
 		self.batch_h = zeros(S, dtype=int64)
@@ -54,19 +57,19 @@ class Config(object):
 
 
 	def train(self, model, epochs=1, bern=True, workers=1, seed=1,
-			log=None, minilog=None):
+			eachepoch=None, eachbatch=None):
 		sampling = self._l.bernSampling if bern else self._l.sampling
 		for epoch in range(epochs):
 			loss = 0
 			self._l.randReset(workers, seed)
 			for batch in range(self.batchcount):
 				sampling(self.batch_h_addr, self.batch_t_addr,
-						self.batch_r_addr, self.batch_y_addr, self.batch_size,
+						self.batch_r_addr, self.batch_y_addr, self.batchshape[0],
 						self.negative_ent, self.negative_rel, workers)
-				loss += model.train(self.batch_h, self.batch_t, self.batch_r,
+				loss += model.fit(self.batch_h, self.batch_t, self.batch_r,
 						self.batch_y)
-				minilog and minilog(t, loss)
-			log and log(t, loss)
+				eachbatch and eachbatch(batch, loss)
+			eachepoch and eachepoch(epoch, loss)
 
 
 	def open(self, filename):
