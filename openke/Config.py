@@ -56,18 +56,21 @@ class Config(object):
 		self.batch_y_addr = c_array(self.batch_y)
 
 
+	def batch(self, bern=True, workers=1, seed=1):
+		self._l.randReset(workers, seed)
+		h, t, l, y = [c_array(x) for x in [self.batch_h, self.batch_t, self.batch_r, self.batch_y]]
+		for _ in range(self.batchcount):
+			sampling(h, t, l, y, self.batchshape[0], self.negative_ent, self.negative_rel, workers)
+			yield self.batch_h, self.batch_t, self.batch_r, self.batch_y
+
+
 	def train(self, model, epochs=1, bern=True, workers=1, seed=1,
 			eachepoch=None, eachbatch=None):
 		sampling = self._l.bernSampling if bern else self._l.sampling
 		for epoch in range(epochs):
 			loss = 0
-			self._l.randReset(workers, seed)
-			for batch in range(self.batchcount):
-				sampling(self.batch_h_addr, self.batch_t_addr,
-						self.batch_r_addr, self.batch_y_addr, self.batchshape[0],
-						self.negative_ent, self.negative_rel, workers)
-				loss += model.fit(self.batch_h, self.batch_t, self.batch_r,
-						self.batch_y)
+			for i, batch in self.batch(bern=bern, workers=workers, seed=seed):
+				loss += model.fit(*batch)
 				eachbatch and eachbatch(batch, loss)
 			eachepoch and eachepoch(epoch, loss)
 

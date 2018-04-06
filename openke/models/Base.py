@@ -44,7 +44,7 @@ class ModelClass(object):
 	def entity(self, head):
 		'''Embeds a batch of subjects.'''
 		feed = {
-				self.predict_h:entities}
+				self.predict_h:head}
 		with self.__graph.as_default():
 			with self.__session.as_default():
 				return self.__session.run(self._entity, feed)
@@ -53,15 +53,13 @@ class ModelClass(object):
 	def save(self, fileprefix):
 		'''Writes the model's state into persistent memory.'''
 		with self.__graph.as_default():
-			with self.__session.as_default():
-				self.__saver.save(fileprefix)
+			self.__saver.save(self.__session, fileprefix)
 
 
 	def restore(self, fileprefix):
 		'''Reads a model from persistent memory.'''
 		with self.__graph.as_default():
-			with self.__session.as_default():
-				self.__saver.restore(fileprefix)
+			self.__saver.restore(self.__session, fileprefix)
 
 
 	def __iter__(self):
