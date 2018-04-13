@@ -18,16 +18,16 @@ def _lookup(h, t, l):
 
 def _term(h, t, l):
 
-	return -sum(h * l * t, -1)
-
-
-def _score(h, t, l):
-	'''The term to score triples.'''
-
-	return _term(*_lookup(h, t, l)) # [.]
+	return h * l * t
 
 
 class DistMult(ModelClass):
+
+
+	def _score(self, h, t, l):
+		'''The term to score triples.'''
+
+		return self._norm(_term(*_lookup(h, t, l))) # [.]
 
 
 	def _embedding_def(self):

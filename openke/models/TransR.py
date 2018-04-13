@@ -8,19 +8,26 @@ at = nn.embedding_lookup
 from .Base import ModelClass
 
 
-def _score(h, t, r):
-	'''The term to score triples.'''
+def _lookup(h, t, l):
 
 	ent = var('ent_embeddings')
-	m = at(var('transfer_matrix'), r) # [.,k,d]
-	r = at(var('rel_embeddings'), r) # [.,k,1]
-	h = matmul(m, at(ent, h)) # [.,k,1]
-	t = matmul(m, at(ent, t)) # [.,k,1]
+	mat = var('transfer_matrix')
+	rel = var('rel_embeddings')
 
-	return sum(squeeze(h + r - t, [-1]), -1) # [.]
+	return at(ent, h), at(ent, t), at(mat, l), at(rel, l)
+
+def _term(h, t, m, l):
+
+	return squeeze(matmul(m, h) + l - matmul(m, t), [-1]) # [.]
 
 
 class TransR(ModelClass):
+
+
+	def _score(self, h, t, l):
+		'''The term to score triples.'''
+
+		return self._norm(_term(*_lookup(h, t, l)))
 
 
 	def _embedding_def(self):
@@ -45,7 +52,7 @@ class TransR(ModelClass):
 		'''Initializes the loss function.'''
 
 		def scores(h, t, r):
-			s = _score(h, t, r) # [b,n,k]
+			s = self._score(h, t, r) # [b,n,k]
 			return mean(s, 1) # [b]
 
 		p = scores(*self._positive_instance(in_batch=True)) # [b]
@@ -57,7 +64,7 @@ class TransR(ModelClass):
 	def _predict_def(self):
 		'''Initializes the prediction function.'''
 
-		return _score(*self._predict_instance()) # [b]
+		return self._score(*self._predict_instance()) # [b]
 
 
 	def __init__(self, edimension, rdimension, margin, baseshape, batchshape,\

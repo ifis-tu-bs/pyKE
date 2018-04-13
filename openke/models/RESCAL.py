@@ -10,17 +10,26 @@ from .Base import ModelClass
 #FIXME replace matmul with PEP465 @-operator when upgrading to Python 3.5
 
 
-def _score(h, t, r):
-	'''The term to score triples.'''
+def _lookup(h, t, l):
 
-	h = at(var('ent_embeddings'), h) # [.,d]
-	t = expand(at(var('ent_embeddings'), t), -1) # [.,d,1]
-	r = at(var('rel_matrices'), r) # [.,d,d]
+	ent = var('ent_embeddings')
+	rel = var('rel_matrices')
 
-	return -sum(h * squeeze(matmul(r, t), [-1]), -1) # [.]
+	return at(ent, h), at(ent, t), at(rel, l)
+
+
+def _term(h, t, m):
+
+	return squeeze(h * matmul(m, t), [-1])
 
 
 class RESCAL(ModelClass):
+
+
+	def _score(h, t, l):
+		'''The term to score triples.'''
+
+		return self._norm(_term(*_lookup(h, t, l))) # [.]
 
 
 	def _embedding_def(self):
@@ -28,20 +37,20 @@ class RESCAL(ModelClass):
 
 		e, r, d = self.base[0], self.base[1], self.dimension[0]
 
-		ent = var('ent_embeddings', [e,d])
+		ent = var('ent_embeddings', [e,d,1])
 		rel = var('rel_matrices', [r,d,d])
 
 		yield 'ent_embeddings', ent
 		yield 'rel_matrices', rel
 
-		self._entity = at(ent, self.predict_h)
+		self._entity = squeeze(at(ent, self.predict_h), [-1])
 
 
 	def _loss_def(self):
 		'''Initializes the loss function.'''
 
 		def scores(h, t, r):
-			s = _score(h, t, r) # [b,n]
+			s = self._score(h, t, r) # [b,n]
 			return mean(s, 1) # [b]
 
 		p = scores(*self._positive_instance(in_batch=True)) # [b]
@@ -53,7 +62,7 @@ class RESCAL(ModelClass):
 	def _predict_def(self):
 		'''Initializes the prediction function.'''
 
-		return _score(*self._predict_instance()) # [b]
+		return self._score(*self._predict_instance()) # [b]
 
 
 	def __init__(self, dimension, margin, baseshape, batchshape,\

@@ -8,21 +8,30 @@ at = nn.embedding_lookup
 from .Base import ModelClass
 
 
-def _score(h, t, r):
-	'''The term to score triples.'''
+def _lookup(h, t, r):
 
-	n = at(var('normal_vectors'), r) # [.,d]
+	nor = var('normal_vectors')
+	ent = var('ent_embeddings')
+	rel = var('rel_embeddings')
+
+	return at(ent, h), at(ent, t), at(nor, l), at(rel, l)
+
+
+def _term(h, t, n, l):
+
 	def transfer(e):
-		return e - sum(e * n, 1, keepdims=True) * n
+		return e - sum(e * n, -1, keepdims=True) * n
 
-	h = transfer(at(var('ent_embeddings'), h)) # [.,d]
-	t = transfer(at(var('ent_embeddings'), t)) # [.,d]
-	r = at(var('rel_embeddings'), r) # [.,d]
-
-	return sum(abs(h + r - t), -1) # [.,d]
+	return transfer(h) + r - transfer(t)
 
 
 class TransH(ModelClass):
+
+
+	def _score(self, h, t, l):
+		'''The term to score triples.'''
+
+		return self._norm(_term(*_lookup(h, t, l)))
 
 
 	def _embedding_def(self):
@@ -47,7 +56,7 @@ class TransH(ModelClass):
 		'''Initializes the loss function.'''
 
 		def scores(h, t, r):
-			s = _score(h, t, r) # [b,n]
+			s = self._score(h, t, r) # [b,n]
 			return mean(s, 1) # [b]
 
 		p = scores(*self._positive_instance(in_batch=True)) # [b]
@@ -59,7 +68,7 @@ class TransH(ModelClass):
 	def _predict_def(self):
 		'''Initializes the prediction function.'''
 
-		return _score(*self._predict_instance()) # [b]
+		return self._score(*self._predict_instance()) # [b]
 
 
 	def __init__(self, dimension, margin, baseshape, batchshape,\

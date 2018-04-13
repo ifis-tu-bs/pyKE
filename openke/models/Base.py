@@ -109,7 +109,8 @@ class ModelClass(object):
 		raise NotImplementedError('prediction impossible without model')
 
 
-	def __init__(self, baseshape, batchshape, optimizer=None):
+	def __init__(self, baseshape, batchshape,
+			optimizer=None, norm=None):
 		'''Creates a new model.
 
 	baseshape
@@ -121,7 +122,11 @@ The first variant is considered true while the rest is considered false.
 
 	optimizer
 The optimization algorithm used to approximate the optimal model in each iteration.
-default: Stochastic Gradient Descent with learning factor of 1%.'''
+default: Stochastic Gradient Descent with learning factor of 1%.
+
+	norm
+The used vector norm to compute a scalar score from the model's prediction.
+default: L1 norm (sum of absolute features).'''
 
 		self.base = baseshape
 		self.batchsize = batchshape[0]
@@ -130,6 +135,10 @@ default: Stochastic Gradient Descent with learning factor of 1%.'''
 		if optimizer is None:
 			import tensorflow
 			optimizer = tensorflow.train.GradientDescentOptimizer(.01)
+		if norm is None:
+			from .norm import l1
+			norm = l1
+		self._norm = norm
 		B, N = self.batchsize, self.negatives
 		S = B * (N + 1)
 		self.__graph = Graph()

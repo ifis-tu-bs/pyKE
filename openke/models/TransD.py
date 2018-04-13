@@ -16,18 +16,23 @@ def _score(h, t, r):
 	etr = var('ent_transfer')
 	rtr = var('rel_transfer')
 
-	re = at(rel, r) # [.,d]
-	rt = at(rtr, r) # [.,d]
+	return at(ent, h), at(etr, h), at(ent, t), at(etr, t), at(rel, l), at(rtr, l)
+
+
+def _term(he, ht, te, tt, le, lt):
 
 	def transfer(e, t):
-		return e + sum(e * t, 1, keepdims=True) * rt
-	h = transfer(at(ent, h), at(etr, h)) # [.,d]
-	t = transfer(at(ent, t), at(etr, t)) # [.,d]
+		return e + sum(e * t, -1, keepdims=True) * lt
 
-	return sum(abs(h + re - t), -1) # [.]
+	return transfer(he, ht) + le - transfer(te, tt)
 
 
 class TransD(ModelClass):
+
+
+	def _score(self, h, t, l):
+
+		return self._norm(_term(*_lookup(h, t, l)))
 
 
 	def _embedding_def(self):

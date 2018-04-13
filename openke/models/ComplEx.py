@@ -11,7 +11,7 @@ def _term(hRe, hIm, tRe, tIm, rRe, rIm):
 	'''Returns the real part of the ComplEx embedding of a fact described by
 three complex numbers.'''
 
-	return sum(hRe * tRe * rRe + hIm * tIm * rRe + hRe * tIm * rIm - hIm * tRe * rIm, -1)
+	return hRe * tRe * rRe + hIm * tIm * rRe + hRe * tIm * rIm - hIm * tRe * rIm
 
 
 def _lookup(h, t, r):
@@ -25,13 +25,13 @@ def _lookup(h, t, r):
 	return at(eRe, h), at(eRe, t), at(rRe, r), at(eIm, h), at(eIm, t), at(rIm, r)
 
 
-def _score(h, t, r):
-	'''The term to embed triples.'''
-
-	return _term(*_lookup(h, t, r)) # [.]
-
-
 class ComplEx(ModelClass):
+
+
+	def _score(self, h, t, r):
+		'''The term to embed triples.'''
+
+		return self._norm(_term(*_lookup(h, t, r))) # [.]
 
 
 	def _embedding_def(self):
@@ -59,7 +59,7 @@ class ComplEx(ModelClass):
 		hRe, hIm, tRe, tIm, lRe, lIm = _lookup(*self._all_instance()) # [b,d]
 		y = self._all_labels() # [b]
 
-		s = _term(hRe, hIm, tRe, tIm, lRe, lIm) # [b]
+		s = self._norm(_term(hRe, hIm, tRe, tIm, lRe, lIm)) # [b]
 		loss = mean(softplus(- y * s), 0) # []
 		reg = mean(hRe ** 2) + mean(hIm ** 2) + mean(tRe ** 2) + mean(tIm ** 2) + mean(lRe ** 2) + mean(lIm ** 2)
 
@@ -69,7 +69,7 @@ class ComplEx(ModelClass):
 	def _predict_def(self):
 		'''Initializes the prediction function.'''
 
-		return _score(*self._predict_instance())
+		return self._score(*self._predict_instance())
 
 
 	def __init__(self, dimension, weight, baseshape, batchshape,\

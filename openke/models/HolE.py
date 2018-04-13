@@ -8,21 +8,29 @@ at, norm = nn.embedding_lookup, nn.l2_normalize
 from .Base import ModelClass
 
 
-def _score(h, t, r):
-	'''The term to embed triples.'''
+def _lookup(h, t, l):
 
 	ent = var('ent_embeddings')
 	rel = var('rel_embeddings')
 
-	def transform(x):
-		return fft(cast(at(ent, x), complex64)) # [.,d]
-	e = real(ifft(conj(transform(h)) * transform(t))) # [.,d]
-	r = norm(at(rel, r), 1) # [.,d]
+	return at(ent, h), at(ent, t), at(rel, l)
 
-	return sigmoid(sum(r * e, -1)) # [.]
+
+def _term(h, t, l):
+
+	def transform(x):
+		return fft(cast(x, complex64)) # [.,d]
+
+	return norm(r, 1) * real(ifft(conj(transform(h)) * transform(t)))
 
 
 class HolE(ModelClass):
+
+
+	def _score(self, h, t, l):
+		'''The term to embed triples.'''
+
+		return sigmoid(self._norm(_term(*_lookup(h, t, l))))
 
 
 	def _embedding_def(self):
