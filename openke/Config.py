@@ -59,6 +59,7 @@ class Config(object):
 	def batch(self, bern=True, workers=1, seed=1):
 		self._l.randReset(workers, seed)
 		h, t, l, y = [c_array(x) for x in [self.batch_h, self.batch_t, self.batch_r, self.batch_y]]
+		sampling = self._l.bernSampling if bern else self._l.sampling
 		for _ in range(self.batchcount):
 			sampling(h, t, l, y, self.batchshape[0], self.negative_ent, self.negative_rel, workers)
 			yield self.batch_h, self.batch_t, self.batch_r, self.batch_y
@@ -66,10 +67,9 @@ class Config(object):
 
 	def train(self, model, epochs=1, bern=True, workers=1, seed=1,
 			eachepoch=None, eachbatch=None):
-		sampling = self._l.bernSampling if bern else self._l.sampling
 		for epoch in range(epochs):
 			loss = 0
-			for i, batch in self.batch(bern=bern, workers=workers, seed=seed):
+			for i, batch in enumerate(self.batch(bern=bern, workers=workers, seed=seed)):
 				loss += model.fit(*batch)
 				eachbatch and eachbatch(batch, loss)
 			eachepoch and eachepoch(epoch, loss)
