@@ -5,8 +5,8 @@ from tensorflow.contrib.layers import xavier_initializer
 from tensorflow.python.training.saver import Saver
 
 
-
 class ModelClass(object):
+	'''Properties and behaviour that different embedding models share.'''
 
 
 	def fit(self, head, tail, label, score):
@@ -16,50 +16,68 @@ class ModelClass(object):
 				self.batch_t:tail,
 				self.batch_l:label,
 				self.batch_y:score}
-		with self.__graph.as_default():
-			with self.__session.as_default():
-				return self.__session.run([self.__training, self.__loss], feed)[1]
+		return self.__session.run([self.__training, self.__loss], feed)[1]
 
 
 	def predict(self, head, tail, label):
 		'''Evaluates the model's scores on a batch of statements.'''
+		from numpy import arange, full
+
+		# transform wildcard parameters
+		# require otherwise scalar parameters
+		E, R = self.base
+		if head is None:
+			if tail is None:
+				if label is None:
+					raise NotImplementedError('universal prediction')
+				raise NotImplementedError('full-relation prediction')
+			elif label is None:
+				raise NotImplementedError('full-tail prediction')
+			head, tail, label = arange(E), full([E], tail), full([E], label)
+		elif tail is None:
+			if label is None:
+				raise NotImplementedError('full-head prediction')
+			head, tail, label = full([E], head), arange(E), full([E], label)
+		elif label is None:
+			head, tail, label = full([R], head), full([R], tail), arange(R)
+
+		# perform prediction
 		feed = {
 				self.predict_h:head,
 				self.predict_t:tail,
 				self.predict_l:label}
-		with self.__graph.as_default():
-			with self.__session.as_default():
-				return self.__session.run(self.__prediction, feed)
+		return self.__session.run(self.__prediction, feed)
 
 
-	def relation(self, label):
+	def relation(self, label=None):
 		'''Embeds a batch of predicates.'''
+		if head is None:
+			with self.__graph.as_default():
+				with self.__session.as_default():
+					return self.__session.run(self._rel_embeddings)
 		feed = {
 				self.predict_l:label}
-		with self.__graph.as_default():
-			with self.__session.as_default():
-				return self.__session.run(self._relation, feed)
+		return self.__session.run(self._relation, feed)
 
 
-	def entity(self, head):
+	def entity(self, head=None):
 		'''Embeds a batch of subjects.'''
+		if head is None:
+			with self.__session.as_default():
+				return self.__session.run(self._ent_embeddings)
 		feed = {
 				self.predict_h:head}
-		with self.__graph.as_default():
-			with self.__session.as_default():
-				return self.__session.run(self._entity, feed)
+		return self.__session.run(self._entity, feed)
 
 
 	def save(self, fileprefix):
 		'''Writes the model's state into persistent memory.'''
-		with self.__graph.as_default():
-			self.__saver.save(self.__session, fileprefix)
+		self.__saver.save(self.__session, fileprefix)
 
 
 	def restore(self, fileprefix):
 		'''Reads a model from persistent memory.'''
-		with self.__graph.as_default():
-			self.__saver.restore(self.__session, fileprefix)
+		self.__saver.restore(self.__session, fileprefix)
 
 
 	def __iter__(self):
@@ -69,9 +87,7 @@ class ModelClass(object):
 
 	def __getitem__(self, key):
 		'''Retrieves the values of a parameter field.'''
-		with self.__graph.as_default():
-			with self.__session.as_default():
-				return self.__session.run(self.__parameters[key])
+		return self.__session.run(self.__parameters[key])
 
 
 	def __setitem__(self, key, value):
@@ -181,3 +197,7 @@ default: Stochastic Gradient Descent with learning factor of 1%.'''
 
 	def _predict_instance(self):
 		return [self.predict_h, self.predict_t, self.predict_l]
+
+
+	def __del__(self):
+		self.__session.close()
