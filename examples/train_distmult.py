@@ -1,34 +1,23 @@
-import config
-import models
-import tensorflow as tf
-import numpy as np
+from openke import Dataset
+from openke.models import DistMult as Model
 
-con = config.Config()
-#Input training files from benchmarks/FB15K/ folder.
-con.set_in_path("./benchmarks/FB15K/")
-#True: Input test files from the same folder.
-con.set_test_flag(True)
+#   Input training files from benchmarks/FB15K/ folder.
+with open("./benchmarks/FB15K/entity2id.txt") as f:
+    E = int(f.readline())
+with open("./benchmarks/FB15K/relation2id.txt") as f:
+    R = int(f.readline())
 
-con.set_work_threads(4)
-con.set_train_times(500)
-con.set_nbatches(100)
-con.set_alpha(0.1)
-con.set_bern(0)
-con.set_dimension(100)
-con.set_ent_neg_rate(1)
-con.set_rel_neg_rate(0)
-con.set_opt_method("Adagrad")
+#   Read the dataset.
+base = Dataset("./benchmarks/FB15K/train2id.txt", E, R)
 
-#Models will be exported via tf.Saver() automatically.
-con.set_export_files("./res/model.vec.tf", 0)
-#Model parameters will be exported to json files automatically.
-con.set_out_files("./res/embedding.vec.json")
-#Initialize experimental settings.
-con.init()
-#Set the knowledge embedding model
-con.set_model(models.DistMult)
-#Train the model.
-con.run()
-#To test models after training needs "set_test_flag(True)".
-con.test()
+#   Set the knowledge embedding model class.
+model = Model(50, .0001, base.shape)
 
+#   Train the model.
+base.train(500, model, count=100, negatives=(1,0), bern=False, workers=4)
+
+#   Input testing files from benchmarks/FB15K/.
+test = Dataset("./benchmarks/FB15K/test2id.txt")
+
+#   Perform a test.
+print(test.meanrank(model, head=False, label=False))

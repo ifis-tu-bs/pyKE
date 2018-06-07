@@ -1,59 +1,23 @@
-import config
-import models
-import tensorflow as tf
-import numpy as np
+from openke import Dataset
+from openke.models import TransR as Model
 
-#Train TransR based on pretrained TransE results.
-#++++++++++++++TransE++++++++++++++++++++
+#   Input training files from benchmarks/FB15K/ folder.
+with open("./benchmarks/FB15K/entity2id.txt") as f:
+    E = int(f.readline())
+with open("./benchmarks/FB15K/relation2id.txt") as f:
+    R = int(f.readline())
 
-con = config.Config()
-con.set_in_path("./benchmarks/FB15K/")
-con.set_work_threads(4)
-con.set_train_times(500)
-con.set_nbatches(100)
-con.set_alpha(0.001)
-con.set_bern(0)
-con.set_dimension(100)
-con.set_margin(1)
-con.set_ent_neg_rate(1)
-con.set_rel_neg_rate(0)
-con.set_opt_method("SGD")
-con.init()
-con.set_model(models.TransE)
-con.run()
-parameters = con.get_parameters("numpy")
+#   Read the dataset.
+base = Dataset("./benchmarks/FB15K/train2id.txt", E, R)
 
-#++++++++++++++TransR++++++++++++++++++++
+#   Set the knowledge embedding model class.
+model = Model(50, 1.0, base.shape)
 
-conR = config.Config()
-#Input training files from benchmarks/FB15K/ folder.
-conR.set_in_path("./benchmarks/FB15K/")
-#True: Input test files from the same folder.
-conR.set_test_flag(True)
+#   Train the model.
+base.train(500, model, count=100, negatives=(1,0), bern=False, workers=4)
 
-conR.set_work_threads(4)
-conR.set_train_times(500)
-conR.set_nbatches(100)
-conR.set_alpha(0.001)
-conR.set_bern(0)
-conR.set_dimension(100)
-conR.set_margin(1)
-conR.set_ent_neg_rate(1)
-conR.set_rel_neg_rate(0)
-conR.set_opt_method("SGD")
+#   Input testing files from benchmarks/FB15K/.
+test = Dataset("./benchmarks/FB15K/test2id.txt")
 
-#Models will be exported via tf.Saver() automatically.
-conR.set_export_files("./res/model.vec.tf", 0)
-#Model parameters will be exported to json files automatically.
-conR.set_out_files("./res/embedding.vec.json")
-#Initialize experimental settings.
-conR.init()
-#Load pretrained TransE results.
-conR.set_model(models.TransR)
-parameters["transfer_matrix"] = np.array([(np.identity(100).reshape((100*100))) for i in range(conR.get_rel_total())])
-conR.set_parameters(parameters)
-#Train the model.
-conR.run()
-#To test models after training needs "set_test_flag(True)".
-conR.test()
-
+#   Perform a test.
+print(test.meanrank(model, head=False, label=False))

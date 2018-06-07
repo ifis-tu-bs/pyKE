@@ -72,9 +72,30 @@ for i in range(folds):
 			eachepoch and eachepoch(epoch, loss)
 
 
+	def meanrank(self, model, head=True, tail=True, label=True):
+		''' Computes the mean rank of link prediction of its entire content.
+Returns floating values between 0 and size-1 where lower results denote better models.
+The return value consists of up to three values, one for each of the columns 'head', 'tail' and 'label'.
+	Arguments:
+model - The to-be-tested embedding model.
+head, tail, label - Truthvalues denoting whether or not the respecting column should be tested.
+	Note:
+This test filters only 'false' facts that evaluate better than the question.
+See `openke.meanrank` for the unfiltered, or 'raw', version.'''
+		h,t,l,_ = next(self.batch())
+		def rank(x, h, t, l):
+			y, z = self.query(h, t, l), model.predict(h, t, l)
+			return sum(1 for i in range(self.shape[0]) if z[i] < z[x] and not y[i])
+		ranks = [
+				(rank(h[i], None, t[i], l[i]) for i in range(self.size)) if head else None,
+				(rank(t[i], h[i], None, l[i]) for i in range(self.size)) if tail else None,
+				(rank(l[i], h[i], t[i], None) for i in range(self.size)) if label else None]
+		return [sum(i) / self.size for i in ranks if i is not None]
+
+
 	def query(self, head, tail, relation):
 		''' Checks which facts are stored in the entire dataset. '''
-		from numpy import _bool, zeros
+		from numpy import bool_, zeros
 		if head is None:
 			if tail is None:
 				if relation is None:
@@ -82,22 +103,43 @@ for i in range(folds):
 				raise NotImplementedError('querying full relation')
 			if relation is None:
 				raise NotImplementedError('querying full head')
-			heads = zeros(self.entTotal, bool_)
+			heads = zeros(self.shape[0], bool_)
 			self._l.query_head(_carray(heads), tail, relation)
 			return heads
 		if tail is None:
 			if relation is None:
 				raise NotImplementedError('querying full tail')
-			tails = zeros(self.entTotal, bool_)
+			tails = zeros(self.shape[0], bool_)
 			self._l.query_tail(head, _carray(tails), relation)
 			return tails
 		if relation is None:
-			relations = zeros(self.relTotal, bool_)
+			relations = zeros(self.shape[1], bool_)
 			self._l.query_rel(head, tail, _carray(relations))
 			return relations
 		raise NotImplementedError('querying single facts')
 # FIXME backwards-compatibility
 Config = Dataset
+
+
+def meanrank(h, t, l, model, head=True, tail=True, label=True):
+	''' Computes the mean rank of link prediction of its entire content.
+Returns a value between 0 and size-1 where lower results denote better models.
+The return value consists of up to three values, one for each of the columns 'head', 'tail' and 'label'.
+	Arguments:
+h, t, l - Integral arrays of equal shape describing relational questions.
+model - The to-be-tested embedding model.
+head, tail, label - Truthvalues denoting whether or not the respecting column should be tested.
+	Note:
+This test ignores whether or not statements that evaluate better than the question are known truths or not.
+See `openke.Database.meanrank` for the filtered version.'''
+	def rank(x, h, t, l):
+		z = model.predict(h, t, l)
+		return sum(1 for i in range(self.shape[0]) if z[i] < z[x])
+	ranks = [
+			(rank(h[i], None, t[i], l[i]) for i in range(len(h))) if head else None,
+			(rank(t[i], h[i], None, l[i]) for i in range(len(t))) if tail else None,
+			(rank(l[i], h[i], t[i], None) for i in range(len(l))) if label else None]
+	return [sum(i) / self.size for i in ranks if i is not None]
 
 
 def _carray(a):
