@@ -1,47 +1,68 @@
 #coding:utf-8
 class Dataset(object):
-	''' Dataset'''
+	'''
+		Manages a collection of relational data
+		encoded as a set of triples, each describing a statement (or fact)
+		over two objects called 'entities', one 'head' and one 'tail',
+		being related in a manner that is symbolized by a relation 'label'.
+
+		The application encodes both entities and relations as integral values,
+		describing an index in an ordered table.
+	'''
 
 
 	def __init__(self, filename,
 			entities, relations,
 			library='./libopenke.so'):
-		''' Creates a new dataset from a table in a file.
-At the moment, no two datasets can be open at the same time!
+		'''
+			Creates a new dataset from a table in a file.
+
+				Arguments
+			filename - String identifying a file to import.
+			entities - Upper bound of entity indexes.
+			relations - Upper bound of relation indexes.
+			library - Path to a shared object implementing the preprocessing.
+			See this project's `base/openke.hpp` for its interface.
+
+				Note
+			At the moment, no two datasets can be open at the same time!
+			The file is expected to contain whitespace-separated integral values,
+			where the first value denotes the 'amount' of statements.
+			The remainder should be a sequence of 'amount' times three indexes
+			in order 'head', 'tail', 'label'.
 		'''
 
 		global _l
 		from ctypes import c_char_p
-		self._l = _l[library]
+		self.__library = __library[library]
 
-		self._l.importTrainFiles(c_char_p(bytes(filename, 'utf-8')),
+		self.__library.importTrainFiles(c_char_p(bytes(filename, 'utf-8')),
 				entities, relations)
-		self.size = self._l.getTrainTotal()
+		self.size = self.__library.getTrainTotal()
 		self.shape = entities, relations
 
 
-	def batch(self, count,
-			negatives=(0,0), bern=True, workers=1, seed=1):
-		''' Separates the dataset into nearly equal parts.
-Iterates over all parts, each time yielding four arrays.
-This method can be used for cross-validation as shown below:
-```
-assert numpy, base, folds, epochs, Model
+	def batch(self, count, negatives=(0,0), bern=True, workers=1, seed=1):
+		'''
+			Separates the dataset into nearly equal parts.
+			Iterates over all parts, each time yielding four arrays.
+			This method can be used for cross-validation as shown below:
 
-for i in range(folds):
+				assert numpy, base, folds, epochs, Model
 
-	model = Model()
+				for i in range(folds):
 
-	for _ in range(epochs):
-		for j, b in enumerate(base.batch(folds)):
-			if i != j:
-				model.fit(*b)
+					model = Model()
 
-	for j, b in enumerate(base.batch(folds)):
-		if i == j:
-			break
-	score = model.predict(*b[:3])
-```
+					for _ in range(epochs):
+						for j, b in enumerate(base.batch(folds)):
+							if i != j:
+								model.fit(*b)
+
+					for j, b in enumerate(base.batch(folds)):
+						if i == j:
+							break
+					score = model.predict(*b[:3])
 		'''
 
 		from numpy import float32, int64, zeros
@@ -52,8 +73,9 @@ for i in range(folds):
 		batch = [zeros(S, dtype=t) for t in types]
 		h, t, l, y = [_carray(x) for x in batch]
 
-		self._l.randReset(workers, seed)
-		sampling = self._l.bernSampling if bern else self._l.sampling
+		self.__library.randReset(workers, seed)
+
+		sampling = self.__library.bernSampling if bern else self.__library.sampling
 		for _ in range(count):
 			print(h,t,l,y,S)
 			sampling(h, t, l, y, size, negatives[0], negatives[1], workers)
@@ -62,39 +84,80 @@ for i in range(folds):
 
 	def train(self, model, epochs=1, bern=True, workers=1, seed=1,
 			eachepoch=None, eachbatch=None):
-		''' A simple training algorithm over the whole set. '''
+		'''
+			A simple training algorithm over the whole set.
+
+				Arguments
+			model - The to-be-trained embedding model.
+			epochs - Integral amount of repeated training epochs
+			bern - Truth value whether or not to use Bernoille distribution
+			when choosing head or tail to be corrupted.
+			workers - Integral amount of worker threads for generation.
+			seed - Seed for the random number generator.
+			eachepoch - Callback at the end of each epoch.
+			eachbatch - Callback after each batch.
+		'''
 
 		for epoch in range(epochs):
 			loss = 0
-			for i, batch in enumerate(self.batch(bern=bern, workers=workers, seed=seed)):
+
+			for i, batch in enumerate(
+					self.batch(bern=bern, workers=workers, seed=seed)):
+
 				loss += model.fit(*batch)
+
 				eachbatch and eachbatch(batch, loss)
+
 			eachepoch and eachepoch(epoch, loss)
 
 
 	def meanrank(self, model, head=True, tail=True, label=True):
-		''' Computes the mean rank of link prediction of its entire content.
-Returns floating values between 0 and size-1 where lower results denote better models.
-The return value consists of up to three values, one for each of the columns 'head', 'tail' and 'label'.
-	Arguments:
-model - The to-be-tested embedding model.
-head, tail, label - Truthvalues denoting whether or not the respecting column should be tested.
-	Note:
-This test filters only 'false' facts that evaluate better than the question.
-See `openke.meanrank` for the unfiltered, or 'raw', version.'''
-		h,t,l,_ = next(self.batch())
+		'''
+			Computes the mean rank of link prediction of its entire content.
+			Returns floating values between 0 and size-1
+			where lower results denote better models.
+			The return value consists of up to three values,
+			one for each of the columns 'head', 'tail' and 'label'.
+
+				Arguments
+			model - The to-be-tested embedding model.
+			head, tail, label - Truth values denoting
+			whether or not the respecting column should be tested.
+
+				Note
+			This test filters only 'false' facts evaluating better than the question.
+			See `openke.meanrank` for the unfiltered, or 'raw', version.
+		'''
+
 		def rank(x, h, t, l):
 			y, z = self.query(h, t, l), model.predict(h, t, l)
 			return sum(1 for i in range(self.shape[0]) if z[i] < z[x] and not y[i])
+
+		I = lambda: range(self.size)
+		h,t,l,_ = next(self.batch())
 		ranks = [
-				(rank(h[i], None, t[i], l[i]) for i in range(self.size)) if head else None,
-				(rank(t[i], h[i], None, l[i]) for i in range(self.size)) if tail else None,
-				(rank(l[i], h[i], t[i], None) for i in range(self.size)) if label else None]
+				(rank(h[i], None, t[i], l[i]) for i in I()) if head else None,
+				(rank(t[i], h[i], None, l[i]) for i in I()) if tail else None,
+				(rank(l[i], h[i], t[i], None) for i in I()) if label else None]
+
 		return [sum(i) / self.size for i in ranks if i is not None]
 
 
 	def query(self, head, tail, relation):
-		''' Checks which facts are stored in the entire dataset. '''
+		'''
+			Checks which facts are stored in the entire dataset.
+			This method is overloaded for the task of link prediction,
+			awaiting an incomplete statement and returning all known substitutes.
+
+				Arguments
+			head - Index of a head entity.
+			tail - Index of a tail entity.
+			label - Index of a relation label.
+
+				Return Value
+			A boolean array, deciding for each candidate
+			whether or not the resulting statement is contained in the dataset.
+		'''
 		from numpy import bool_, zeros
 		if head is None:
 			if tail is None:
@@ -104,17 +167,17 @@ See `openke.meanrank` for the unfiltered, or 'raw', version.'''
 			if relation is None:
 				raise NotImplementedError('querying full head')
 			heads = zeros(self.shape[0], bool_)
-			self._l.query_head(_carray(heads), tail, relation)
+			self.__library.query_head(_carray(heads), tail, relation)
 			return heads
 		if tail is None:
 			if relation is None:
 				raise NotImplementedError('querying full tail')
 			tails = zeros(self.shape[0], bool_)
-			self._l.query_tail(head, _carray(tails), relation)
+			self.__library.query_tail(head, _carray(tails), relation)
 			return tails
 		if relation is None:
 			relations = zeros(self.shape[1], bool_)
-			self._l.query_rel(head, tail, _carray(relations))
+			self.__library.query_rel(head, tail, _carray(relations))
 			return relations
 		raise NotImplementedError('querying single facts')
 # FIXME backwards-compatibility
@@ -122,23 +185,37 @@ Config = Dataset
 
 
 def meanrank(h, t, l, model, head=True, tail=True, label=True):
-	''' Computes the mean rank of link prediction of its entire content.
-Returns a value between 0 and size-1 where lower results denote better models.
-The return value consists of up to three values, one for each of the columns 'head', 'tail' and 'label'.
-	Arguments:
-h, t, l - Integral arrays of equal shape describing relational questions.
-model - The to-be-tested embedding model.
-head, tail, label - Truthvalues denoting whether or not the respecting column should be tested.
-	Note:
-This test ignores whether or not statements that evaluate better than the question are known truths or not.
-See `openke.Database.meanrank` for the filtered version.'''
+	'''
+		Computes the mean rank of link prediction of its entire content.
+
+			Arguments
+		h, t, l - Integral arrays of equal shape describing relational questions.
+		model - The to-be-tested embedding model.
+		head, tail, label - Truth values, each of which denoting
+		whether or not the respecting column should be tested.
+
+			Return Value
+		Flaoting point values between 0 and size-1
+		where lower results denote better models.
+		The result consists of up to three values,
+		one for each of the columns 'head', 'tail' and 'label' in this order.
+
+			Note
+		This test ignores whether or not statements
+		that evaluate better than the question are known truths or not.
+		See `openke.Database.meanrank` for the filtered version.
+	'''
+
 	def rank(x, h, t, l):
 		z = model.predict(h, t, l)
 		return sum(1 for i in range(self.shape[0]) if z[i] < z[x])
+
+	I = lambda: range(len(h))
 	ranks = [
-			(rank(h[i], None, t[i], l[i]) for i in range(len(h))) if head else None,
-			(rank(t[i], h[i], None, l[i]) for i in range(len(t))) if tail else None,
-			(rank(l[i], h[i], t[i], None) for i in range(len(l))) if label else None]
+			(rank(h[i], None, t[i], l[i]) for i in I()) if head else None,
+			(rank(t[i], h[i], None, l[i]) for i in I()) if tail else None,
+			(rank(l[i], h[i], t[i], None) for i in I()) if label else None]
+
 	return [sum(i) / self.size for i in ranks if i is not None]
 
 
@@ -147,9 +224,15 @@ def _carray(a):
 
 
 class _Library:
-	''' Manages the connection to the library. '''
+	'''
+		Manages the connection to the library.
+	'''
+
+
 	def __init__(self):
 		self.__dict = dict()
+
+
 	def __getitem__(self, key):
 		if key in self.__dict:
 			return self.__dict[key]
@@ -164,4 +247,6 @@ class _Library:
 		l.randReset.argtypes = [i, i]
 		self.__dict[key] = l
 		return l
+
+
 _l = _Library()
