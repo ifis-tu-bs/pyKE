@@ -73,6 +73,7 @@ ent_id corrupt_tail(unsigned long int id, ent_id head, rel_id relation)
 
 	/*
 Answers a question with a randomized unknown relation.
+FIXME SIGSEGV
 	*/
 rel_id corrupt_rel(unsigned long int id, ent_id head, ent_id tail)
 {
