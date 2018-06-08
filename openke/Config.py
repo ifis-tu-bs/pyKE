@@ -34,7 +34,7 @@ class Dataset(object):
 
 		global _l
 		from ctypes import c_char_p
-		self.__library = __library[library]
+		self.__library = _l[library]
 
 		self.__library.importTrainFiles(c_char_p(bytes(filename, 'utf-8')),
 				entities, relations)
@@ -82,14 +82,17 @@ class Dataset(object):
 			yield batch
 
 
-	def train(self, model, epochs=1, bern=True, workers=1, seed=1,
+	def train(self, model,
+			folds=1, epochs=1,
+			batchkwargs={},
 			eachepoch=None, eachbatch=None):
 		'''
 			A simple training algorithm over the whole set.
 
 				Arguments
-			model - The to-be-trained embedding model.
+			model - Parameterless constructor of to-be-trained embedding models.
 			epochs - Integral amount of repeated training epochs
+			folds - Integral amount of batches t
 			bern - Truth value whether or not to use Bernoille distribution
 			when choosing head or tail to be corrupted.
 			workers - Integral amount of worker threads for generation.
@@ -98,22 +101,37 @@ class Dataset(object):
 			eachbatch - Callback after each batch.
 		'''
 
-		for epoch in range(epochs):
-			loss = 0
+		record = list()
+		for index in range(folds):
 
-			for i, batch in enumerate(
-					self.batch(bern=bern, workers=workers, seed=seed)):
+			m = model()
+			for epoch in range(epochs):
 
-				loss += model.fit(*batch)
+				loss = 0
+				for i, batch in enumerate(
+						self.batch(folds, **batchkwargs)):
+					if i == index:
+						continue
 
-				eachbatch and eachbatch(batch, loss)
+					# one training batch
+					loss += m.fit(*batch)
 
-			eachepoch and eachepoch(epoch, loss)
+					eachbatch and eachbatch(batch, loss)
+
+				eachepoch and eachepoch(epoch, loss)
+
+			# choose the best-performing model
+			record.append(self.meanrank(m, folds, index))
+			if min(record, sum) == record[-1]:
+				best = m
+
+		return best, record
 
 
-	def meanrank(self, model, head=True, tail=True, label=True):
+	def meanrank(self, model, folds=1, index=0,
+			head=True, tail=True, label=True, batchkwargs={}):
 		'''
-			Computes the mean rank of link prediction of its entire content.
+			Computes the mean rank of link prediction of one batch of the data.
 			Returns floating values between 0 and size-1
 			where lower results denote better models.
 			The return value consists of up to three values,
@@ -121,6 +139,8 @@ class Dataset(object):
 
 				Arguments
 			model - The to-be-tested embedding model.
+			folds - Amount of batches the data is separated.
+			index - Identifier of the tested batch.
 			head, tail, label - Truth values denoting
 			whether or not the respecting column should be tested.
 
@@ -134,7 +154,9 @@ class Dataset(object):
 			return sum(1 for i in range(self.shape[0]) if z[i] < z[x] and not y[i])
 
 		I = lambda: range(self.size)
-		h,t,l,_ = next(self.batch())
+		for i, (h, t, l, _) in self.batch(folds, **kwargs):
+			if i == index:
+				break
 		ranks = [
 				(rank(h[i], None, t[i], l[i]) for i in I()) if head else None,
 				(rank(t[i], h[i], None, l[i]) for i in I()) if tail else None,
