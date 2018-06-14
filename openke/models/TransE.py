@@ -18,7 +18,7 @@ def _lookup(h, t, l):
 
 def _term(h, t, l):
 
-	return h - t + r
+	return h - t + l
 
 
 class TransE(ModelClass):
@@ -35,11 +35,11 @@ class TransE(ModelClass):
 
 		e, r, d = self.base[0], self.base[1], self.dimension[0]
 
-		ent = var('ent_embeddings', [e, d])
-		rel = var('rel_embeddings', [r, d])
+		ent = var('ent_embedding', [e, d])
+		rel = var('rel_embedding', [r, d])
 
-		yield 'ent_embeddings', ent
-		yield 'rel_embeddings', rel
+		yield 'ent_embedding', ent
+		yield 'rel_embedding', rel
 
 		self._entity = at(ent, self.predict_h)
 		self._relation = at(rel, self.predict_l)
@@ -48,8 +48,8 @@ class TransE(ModelClass):
 	def _loss_def(self):
 		'''Initializes the loss function.'''
 
-		def scores(h, t, r):
-			s = self._score(h, t, r) # [b,n]
+		def scores(h, t, l):
+			s = self._score(h, t, l) # [b,n]
 			return mean(s, 1) # [b]
 
 		p = scores(*self._positive_instance(in_batch=True)) # [b]
