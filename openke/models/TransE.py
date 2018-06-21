@@ -64,11 +64,11 @@ class TransE(ModelClass):
 		return self._score(*self._predict_instance()) # [b]
 
 
-	def __init__(self, dimension, margin, baseshape, batchshape,\
+	def __init__(self, dimension, margin, baseshape, batchshape=None,\
 			optimizer=None):
 		self.dimension = dimension,
 		self.margin = margin
-		super().__init__(baseshape, batchshape, optimizer=optimizer)
+		super().__init__(baseshape, batchshape=batchshape, optimizer=optimizer)
 
 
 	def __str__(self):

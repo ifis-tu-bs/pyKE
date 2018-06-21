@@ -11,7 +11,7 @@ with open("./benchmarks/FB15K/relation2id.txt") as f:
 base = Dataset("./benchmarks/FB15K/train2id.txt", E, R)
 
 #   Set the knowledge embedding model class.
-model = Model(50, 1.0, base.shape)
+model = Model(50, 1.0, base.shape, batchshape=(len(base) // 500, 2))
 
 #   Train the model.
 base.train(500, model, count=100, negatives=(1,0), bern=False, workers=4)

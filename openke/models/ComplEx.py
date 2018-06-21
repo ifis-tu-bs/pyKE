@@ -72,11 +72,11 @@ class ComplEx(ModelClass):
 		return self._score(*self._predict_instance())
 
 
-	def __init__(self, dimension, weight, baseshape, batchshape,\
+	def __init__(self, dimension, weight, baseshape, batchshape=None,\
 			optimizer=None):
 		self.dimension = dimension,
 		self.weight = weight
-		super().__init__(baseshape, batchshape, optimizer=optimizer)
+		super().__init__(baseshape, batchshape=batchshape, optimizer=optimizer)
 
 
 	def __str__(self):

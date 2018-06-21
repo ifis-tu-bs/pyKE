@@ -1,10 +1,4 @@
 #coding:utf-8
-from tensorflow import name_scope, transpose, reshape, placeholder, int64, float32
-from tensorflow import Session, Graph, global_variables_initializer, variable_scope, nn, AUTO_REUSE
-from tensorflow.contrib.layers import xavier_initializer
-from tensorflow.python.training.saver import Saver
-
-
 class ModelClass(object):
 	'''Properties and behaviour that different embedding models share.'''
 
@@ -109,7 +103,7 @@ class ModelClass(object):
 		raise NotImplementedError('prediction impossible without model')
 
 
-	def __init__(self, baseshape, batchshape,
+	def __init__(self, baseshape, batchshape=None,
 			optimizer=None, norm=None):
 		'''Creates a new model.
 
@@ -119,6 +113,7 @@ A pair of numbers describing the amount of entities and relations.
 	batchshape
 A pair of numbers describing the amount of training statements per iteration and the amount of variants per statement.
 The first variant is considered true while the rest is considered false.
+default: Model not intended for training
 
 	optimizer
 The optimization algorithm used to approximate the optimal model in each iteration.
@@ -128,7 +123,12 @@ default: Stochastic Gradient Descent with learning factor of 1%.
 The used vector norm to compute a scalar score from the model's prediction.
 default: L1 norm (sum of absolute features).'''
 
+		from tensorflow import name_scope, transpose, reshape, placeholder, int64, float32, Session, Graph, global_variables_initializer, variable_scope, nn, AUTO_REUSE
+		from tensorflow.contrib.layers import xavier_initializer
+		from tensorflow.python.training.saver import Saver
 		self.base = baseshape
+		if batchshape is None:
+			batchshape = 0,0
 		self.batchsize = batchshape[0]
 		self.negatives = batchshape[1] - 1
 		self.__parameters = dict()
