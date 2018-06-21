@@ -11,10 +11,11 @@ with open("./benchmarks/FB15K/relation2id.txt") as f:
 base = Dataset("./benchmarks/FB15K/train2id.txt", E, R)
 
 #   Set the knowledge embedding model class.
-model = TransE(50, 1.0, base.shape, batchshape=(len(base) // 500, 2))
+model = lambda: TransE(50, 1.0, base.shape, batchshape=(len(base) // 20, 2))
 
 #   Train the model.
-base.train(500, model, count=100, negatives=(1,0), bern=False, workers=4)
+base.train(model, folds=20, epochs=500, batchkwargs={'negatives':(1,0), 'bern':False, 'workers':4},
+	eachepoch=print)
 
 #   Save the result.
 model.save("./result")

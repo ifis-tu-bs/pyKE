@@ -21,7 +21,7 @@ def _term(h, t, l):
 	def transform(x):
 		return fft(cast(x, complex64)) # [.,d]
 
-	return norm(r, 1) * real(ifft(conj(transform(h)) * transform(t)))
+	return norm(l, 1) * real(ifft(conj(transform(h)) * transform(t)))
 
 
 class HolE(ModelClass):
@@ -52,7 +52,7 @@ class HolE(ModelClass):
 		'''Initializes the loss function.'''
 
 		def scores(h, t, r):
-			s = _score(h, t, r) # [b,n]
+			s = self._score(h, t, r) # [b,n]
 			return mean(-s, 1) # [b]
 
 		p = scores(*self._positive_instance(in_batch=True)) # [b]
@@ -64,7 +64,7 @@ class HolE(ModelClass):
 	def _predict_def(self):
 		'''Initializes the prediction function.'''
 
-		return _score(*self._predict_instance()) # [b]
+		return self._score(*self._predict_instance()) # [b]
 
 
 	def __init__(self, dimension, margin, baseshape, batchshape=None, optimizer=None):

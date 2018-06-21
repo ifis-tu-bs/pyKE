@@ -42,6 +42,10 @@ class Dataset(object):
 		self.shape = entities, relations
 
 
+	def __len__(self):
+		return self.size
+
+
 	def batch(self, count, negatives=(0,0), bern=True, workers=1, seed=1):
 		'''
 			Separates the dataset into nearly equal parts.
@@ -77,7 +81,6 @@ class Dataset(object):
 
 		sampling = self.__library.bernSampling if bern else self.__library.sampling
 		for _ in range(count):
-			print(h,t,l,y,S)
 			sampling(h, t, l, y, size, negatives[0], negatives[1], workers)
 			yield batch
 

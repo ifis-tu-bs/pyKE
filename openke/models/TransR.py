@@ -67,7 +67,7 @@ class TransR(ModelClass):
 		return self._score(*self._predict_instance()) # [b]
 
 
-	def __init__(self, edimension, rdimension, margin, baseshape, batchshape=batchshape,\
+	def __init__(self, edimension, rdimension, margin, baseshape, batchshape=None,\
 			optimizer=None):
 		self.dimension = edimension, rdimension
 		self.margin = margin
