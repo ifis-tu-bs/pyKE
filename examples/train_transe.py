@@ -14,7 +14,7 @@ base = Dataset("./benchmarks/FB15K/train2id.txt", E, R)
 model = lambda: TransE(50, 1.0, base.shape, batchshape=(len(base) // 20, 2))
 
 #   Train the model.
-base.train(model, folds=20, epochs=500, batchkwargs={'negatives':(1,0), 'bern':False, 'workers':4},
+base.train(model, folds=20, epochs=50, batchkwargs={'negatives':(1,0), 'bern':False, 'workers':4},
 	eachepoch=print)
 
 #   Save the result.

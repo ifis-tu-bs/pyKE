@@ -157,7 +157,7 @@ class Dataset(object):
 			return sum(1 for i in range(self.shape[0]) if z[i] < z[x] and not y[i])
 
 		I = lambda: range(self.size)
-		for i, (h, t, l, _) in self.batch(folds, **kwargs):
+		for i, (h, t, l, _) in enumerate(self.batch(folds, **batchkwargs)):
 			if i == index:
 				break
 		ranks = [
