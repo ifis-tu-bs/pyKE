@@ -88,6 +88,7 @@ class Dataset(object):
 	def train(self, model,
 			folds=1, epochs=1,
 			batchkwargs={},
+			prefix='best',
 			eachepoch=None, eachbatch=None):
 		'''
 			A simple training algorithm over the whole set.
@@ -125,10 +126,11 @@ class Dataset(object):
 
 			# choose the best-performing model
 			record.append(self.meanrank(m, folds, index))
-			if min(record, sum) == record[-1]:
-				best = m
+			if min(record, key=sum) == record[-1]:
+				m.save(prefix)
 
-		return best, record
+		m.restore(prefix)
+		return m, record
 
 
 	def meanrank(self, model, folds=1, index=0,
@@ -152,18 +154,18 @@ class Dataset(object):
 			See `openke.meanrank` for the unfiltered, or 'raw', version.
 		'''
 
-		def rank(x, h, t, l):
+		def rank(d, x, h, t, l):
 			y, z = self.query(h, t, l), model.predict(h, t, l)
-			return sum(1 for i in range(self.shape[0]) if z[i] < z[x] and not y[i])
+			return sum(1 for i in range(self.shape[d]) if z[i] < z[x] and not y[i])
 
-		I = lambda: range(self.size)
+		I = lambda: range(self.size // folds)
 		for i, (h, t, l, _) in enumerate(self.batch(folds, **batchkwargs)):
 			if i == index:
 				break
 		ranks = [
-				(rank(h[i], None, t[i], l[i]) for i in I()) if head else None,
-				(rank(t[i], h[i], None, l[i]) for i in I()) if tail else None,
-				(rank(l[i], h[i], t[i], None) for i in I()) if label else None]
+				(rank(0, h[i], None, t[i], l[i]) for i in I()) if head else None,
+				(rank(0, t[i], h[i], None, l[i]) for i in I()) if tail else None,
+				(rank(1, l[i], h[i], t[i], None) for i in I()) if label else None]
 
 		return [sum(i) / self.size for i in ranks if i is not None]
 

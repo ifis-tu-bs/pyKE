@@ -14,8 +14,10 @@ base = Dataset("./benchmarks/FB15K/train2id.txt", E, R)
 model = lambda: Model(50, 1.0, base.shape, batchshape=(len(base) // 20, 2))
 
 #   Train the model.
-base.train(model, folds=20, epochs=50, batchkwargs={'negatives':(1,0), 'bern':False, 'workers':4},
-	eachepoch=print)
+model, record = base.train(model, folds=20, epochs=50,
+	batchkwargs={'negatives':(1,0), 'bern':False, 'workers':4},
+	eachepoch=print, prefix=".result")
+print(record)
 
 #   Input testing files from benchmarks/FB15K/.
 test = Dataset("./benchmarks/FB15K/test2id.txt")
