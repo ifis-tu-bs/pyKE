@@ -49,8 +49,8 @@ class RESCAL(ModelClass):
 	def _loss_def(self):
 		'''Initializes the loss function.'''
 
-		def scores(h, t, r):
-			s = self._score(h, t, r) # [b,n]
+		def scores(h, t, l):
+			s = self._score(h, t, l) # [b,n]
 			return mean(s, 1) # [b]
 
 		p = scores(*self._positive_instance(in_batch=True)) # [b]

@@ -8,7 +8,7 @@ at = nn.embedding_lookup
 from .Base import ModelClass
 
 
-def _lookup(h, t, r):
+def _lookup(h, t, l):
 
 	nor = var('normal_vectors')
 	ent = var('ent_embeddings')
@@ -19,10 +19,10 @@ def _lookup(h, t, r):
 
 def _term(h, t, n, l):
 
-	def transfer(e):
-		return e - sum(e * n, -1, keepdims=True) * n
-
-	return transfer(h) + r - transfer(t)
+	from tensorflow import nn
+	n = nn.l2_normalize(n)
+	transfer = lambda e: e - sum(e * n, -1, keepdims=True) * n
+	return transfer(h) + l - transfer(t)
 
 
 class TransH(ModelClass):
@@ -55,8 +55,8 @@ class TransH(ModelClass):
 	def _loss_def(self):
 		'''Initializes the loss function.'''
 
-		def scores(h, t, r):
-			s = self._score(h, t, r) # [b,n]
+		def scores(h, t, l):
+			s = self._score(h, t, l) # [b,n]
 			return mean(s, 1) # [b]
 
 		p = scores(*self._positive_instance(in_batch=True)) # [b]

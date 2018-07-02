@@ -8,7 +8,7 @@ at = nn.embedding_lookup
 from .Base import ModelClass
 
 
-def _score(h, t, r):
+def _score(h, t, l):
 	'''The term to embed triples.'''
 
 	ent = var('ent_embeddings')
@@ -57,8 +57,8 @@ class TransD(ModelClass):
 	def _loss_def(self):
 		'''Initializes the loss function.'''
 
-		def scores(h, t, r):
-			s = _score(h, t, r) # [b,n]
+		def scores(h, t, l):
+			s = _score(h, t, l) # [b,n]
 			return mean(s, 1) # [b]
 
 		p = scores(*self._positive_instance(in_batch=True)) # [b]

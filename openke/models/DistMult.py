@@ -51,7 +51,7 @@ class DistMult(ModelClass):
 		h, t, l = _lookup(*self._all_instance()) # [bp+bn,d]
 		y = self._all_labels() # [bp+bn]
 
-		s = _term(h, t, l) # [bp+bn]
+		s = self._norm(_term(h, t, l)) # [bp+bn]
 		loss = mean(softplus(y * s)) # []
 		reg = mean(h ** 2) + mean(t ** 2) + mean(l ** 2) # []
 
@@ -61,7 +61,7 @@ class DistMult(ModelClass):
 	def _predict_def(self):
 		'''Initializes the prediction function.'''
 
-		return _score(*self._predict_instance()) # [b]
+		return self._score(*self._predict_instance()) # [b]
 
 
 	def __init__(self, dimension, weight, baseshape, batchshape=None,\
