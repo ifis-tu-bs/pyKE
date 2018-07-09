@@ -1,4 +1,4 @@
-# OpenKE
+# ifisKE
 
 An Open-source Framework for Knowledge Embedding forked from [github.org/thunlp/OpenKE](http://github.org/thunlp/OpenKE).
 The original API changed drastically to look more intuitively on a python notebook.
@@ -13,19 +13,20 @@ For each specific model, it is implemented by TensorFlow with Python interfaces 
 
 ## Installation
 
+1. Clone repository and enter directory
+
+    ```
+    git clone https://github.com/ifis-tu-bs/KnowledgeEmbedding.git
+    cd KnowledgeEmbedding
+    ```
+
 1. Install requirements
 
-	$ pip install tensorflow
-
-2. Clone the OpenKE repository:
-
-	$ git clone https://github.com/thunlp/OpenKE
-
-	$ cd OpenKE
+	`pip install -r requirements.txt`
 
 3. Build the library
 
-	$ bash make.sh
+	`./make.sh`
 
 
 ## Data

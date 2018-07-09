@@ -132,3 +132,8 @@ venv.bak/
 *.exe
 *.out
 *.app
+
+# IntelliJ
+.idea/
+benchmarks/
+result/
