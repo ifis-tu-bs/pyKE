@@ -40,16 +40,10 @@ Make sure to separate your data early on into at least two separate parts for tr
 To compute a knowledge graph embedding, first import datasets and set configure parameters for training, then train models and export results. For instance, we write an example_train_transe.py to train TransE:
 
 	from openke import Dataset
-	from openke.models import TransE
-
-	#   Input training files from benchmarks/FB15K/ folder.
-	with open("./benchmarks/FB15K/entity2id.txt") as f:
-	    E = int(f.readline())
-	with open("./benchmarks/FB15K/relation2id.txt") as f:
-	    R = int(f.readline())
-
-	#   Read the dataset.
-	base = Dataset("./benchmarks/FB15K/train2id.txt", E, R)
+    from openke.models import TransE
+    
+    # Read the dataset
+    base = Dataset("./benchmarks/fb15k.nt")
 
 	#   Set the knowledge embedding model class.
 	model = TransE(50, 1.0, base.shape)
