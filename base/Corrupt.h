@@ -9,17 +9,17 @@
 	/*
 Answers a question with a randomized unknown head.
 	*/
-ent_id corrupt_head(
+int64_t corrupt_head(
 		unsigned long int id,
-		ent_id tail,
-		rel_id relation)
+		int64_t tail,
+		int64_t relation)
 {
 	// using precalculated better range
 	const auto range = std::equal_range(lefHead[tail], rigHead[tail], Triple(0, tail, relation), Triple::cmp_r);
 	const auto lower = range.first;
 	const auto upper = range.second;
 
-	const ent_id x = rand_max(id, entityTotal - (upper - lower));
+	const int64_t x = rand_max(id, entityTotal - (upper - lower));
 	if (x < lower->t)
 		return x;
 	if (x + (upper - lower) > (upper-1)->t)
@@ -43,14 +43,14 @@ ent_id corrupt_head(
 	/*
 Answers a question with a randomized unknown tail.
 	*/
-ent_id corrupt_tail(unsigned long int id, ent_id head, rel_id relation)
+int64_t corrupt_tail(unsigned long int id, int64_t head, int64_t relation)
 {
 	// using precalculated better range
 	const auto range = std::equal_range(lefTail[head], rigTail[head], Triple(head, 0, relation), Triple::cmp_r);
 	const auto lower = range.first;
 	const auto upper = range.second;
 
-	const ent_id x = rand_max(id, entityTotal - (upper - lower));
+	const int64_t x = rand_max(id, entityTotal - (upper - lower));
 	if (x < lower->h)
 		return x;
 	if (x + (upper - lower) > (upper-1)->h)
@@ -75,14 +75,14 @@ ent_id corrupt_tail(unsigned long int id, ent_id head, rel_id relation)
 Answers a question with a randomized unknown relation.
 FIXME SIGSEGV
 	*/
-rel_id corrupt_rel(unsigned long int id, ent_id head, ent_id tail)
+int64_t corrupt_rel(unsigned long int id, int64_t head, int64_t tail)
 {
 	// using precalculated better range
 	const auto range = std::equal_range(lefRel[head], rigHead[head], Triple(head, tail, 0), Triple::cmp_t);
 	const auto lower = range.first;
 	const auto upper = range.second;
 
-	const ent_id x = rand_max(id, relationTotal - (upper - lower));
+	const int64_t x = rand_max(id, relationTotal - (upper - lower));
 	if (x < lower->h)
 		return x;
 	if (x + (upper - lower) > (upper-1)->h)

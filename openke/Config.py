@@ -49,7 +49,7 @@ class Dataset(object):
             parser.ent_count,
             parser.rel_count,
         )
-        self.size = self.__library.getTrainTotal()
+        self.size = parser.train_count
         self.shape = parser.ent_count, parser.rel_count
 
     def __len__(self):

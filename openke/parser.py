@@ -42,6 +42,7 @@ class NTriplesParser:
         self.test_file = os.path.join(self.output_dir, "test2id.txt")
         self.ent_count = None
         self.rel_count = None
+        self.train_count = None
 
     def parse(self):
         """
@@ -55,6 +56,8 @@ class NTriplesParser:
                 self.ent_count = int(f.readline())
             with open(self.relation_file) as f:
                 self.rel_count = int(f.readline())
+            with open(self.train_file) as f:
+                self.train_count = int(f.readline())
         else:
             self.create_benchmark()
 
@@ -260,3 +263,4 @@ class NTriplesParser:
 
         self.ent_count = len(srs_ent)
         self.rel_count = len(srs_rel)
+        self.train_count = len(df_train)

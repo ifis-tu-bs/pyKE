@@ -15,34 +15,17 @@ void bernSampling(uint64_t* h, uint64_t* t, uint64_t* r, float* y, uint64_t size
 extern "C"
 void sampling(uint64_t* h, uint64_t* t, uint64_t* r, float* y, uint64_t size, uint64_t ne, uint64_t nr, uint64_t workers);
 
+extern "C"
+int importTrainFiles(const char* inPath, int64_t entities, int64_t relations);
 
 extern "C"
-int importTrainFiles(const char* inPath, ent_id entities, rel_id relations);
-
-
-extern "C"
-void query_head(char*, ent_id, rel_id);
-extern "C"
-void query_tail(ent_id, char*, rel_id);
-extern "C"
-void query_rel(ent_id, ent_id, char*);
-
+void query_head(char*, int64_t, int64_t);
 
 extern "C"
-uint64_t getEntityTotal(void);
+void query_tail(int64_t, char*, int64_t);
 
 extern "C"
-uint64_t getRelationTotal(void);
-
-extern "C"
-uint64_t getTripleTotal(void);
-
-extern "C"
-uint64_t getTrainTotal(void);
-
-extern "C"
-uint64_t getTestTotal(void);
-
+void query_rel(int64_t, int64_t, char*);
 
 #	if 0
 extern "C"

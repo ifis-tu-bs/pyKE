@@ -6,15 +6,15 @@
 #	include <algorithm> // std::binary_search
 
 
-extern "C" void query_head(char*, ent_id, rel_id);
-extern "C" void query_tail(ent_id, char*, rel_id);
-extern "C" void query_rel(ent_id, ent_id, char*);
+extern "C" void query_head(char*, int64_t, int64_t);
+extern "C" void query_tail(int64_t, char*, int64_t);
+extern "C" void query_rel(int64_t, int64_t, char*);
 
 
 extern "C" void query_head(
 		char* out,
-		ent_id tail,
-		rel_id relation)
+		int64_t tail,
+		int64_t relation)
 try
 {
 	// assuming out has size `entityTotal` and is zero-initialized
@@ -31,9 +31,9 @@ catch (std::out_of_range& e)
 
 
 extern "C" void query_tail(
-		ent_id head,
+		int64_t head,
 		char* out,
-		rel_id relation)
+		int64_t relation)
 try
 {
 	// assuming out has size `entityTotal` and is zero-initialized
@@ -50,8 +50,8 @@ catch (std::out_of_range& e)
 
 
 extern "C" void query_rel(
-		ent_id head,
-		ent_id tail,
+		int64_t head,
+		int64_t tail,
 		char* out)
 try
 {

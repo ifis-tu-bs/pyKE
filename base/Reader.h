@@ -33,10 +33,7 @@ std::vector<float> meant;
 
 
 extern "C"
-int importTrainFiles(
-		const char* inPath,
-		ent_id entities,
-		rel_id relations)
+int importTrainFiles(const char* inPath, int64_t entities, int64_t relations)
 try
 {
 	entityTotal = entities;
@@ -68,7 +65,7 @@ try
 	{
 		const auto end = trainHead.cend();
 		auto i = trainHead.cbegin();
-		ent_id last = i->t;
+		int64_t last = i->t;
 		for (++i; i != end; last = i->t, ++i)
 		{
 			if (i->t == last)
@@ -84,7 +81,7 @@ try
 	{
 		const auto end = trainTail.cend();
 		auto i = trainTail.cbegin();
-		ent_id last = i->h;
+		int64_t last = i->h;
 		for (++i; i != end; last = i->h, ++i)
 		{
 			if (i->h == last)
@@ -100,7 +97,7 @@ try
 	{
 		const auto end = trainRel.cend();
 		auto i = trainRel.cbegin();
-		ent_id last = i->h;
+		int64_t last = i->h;
 		for (++i; i != end; last = i->h, ++i)
 		{
 			if (i->h == last)
@@ -112,7 +109,7 @@ try
 	rigRel.at(trainRel.back().h) = trainRel.cend();
 
 	meanh.assign(relations, 0.);
-	for (ent_id i = 0; i < entities; ++i)
+	for (int64_t i = 0; i < entities; ++i)
 	{
 		const auto lower = lefHead[i];
 		const auto upper = rigHead[i];
@@ -122,11 +119,11 @@ try
 			if (j->r != (j - 1)->r)
 				meanh.at(j->r) += 1.;
 	}
-	for (rel_id i = 0; i < relations; ++i)
+	for (int64_t i = 0; i < relations; ++i)
 		meanh[i] = meanh[i] > .5 ? freqr[i] / meanh[i] : 0;
 
 	meant.assign(relations, 0.);
-	for (ent_id i = 0; i < entities; ++i)
+	for (int64_t i = 0; i < entities; ++i)
 	{
 		const auto lower = lefTail[i];
 		const auto upper = rigTail[i];
@@ -137,7 +134,7 @@ try
 				meant.at(j->r) += 1.;
 	}
 
-	for (rel_id i = 0; i < relations; ++i)
+	for (int64_t i = 0; i < relations; ++i)
 		meant[i] = meant[i] > .5 ? freqr[i] / meant[i] : 0;
 	return 0;
 }
