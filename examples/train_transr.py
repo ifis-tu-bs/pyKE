@@ -22,8 +22,8 @@ def ee(epoch, loss):
 		raise TypeError(loss)
 	print(epoch, loss)
 model, record = base.train(model, folds=20, epochs=20,
-	batchkwargs={'negatives':(1,0), 'bern':False, 'workers':4},
-	eachepoch=ee, prefix="./result")
+                           batchkwargs={'negatives':(1,0), 'bern':False, 'workers':4},
+                           post_epoch=ee, prefix="./result")
 print(record)
 
 #   Input testing files from benchmarks/FB15K/.

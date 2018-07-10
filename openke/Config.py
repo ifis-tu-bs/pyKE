@@ -50,13 +50,15 @@ class Dataset(object):
             parser.rel_count,
         )
         self.size = parser.train_count
-        self.shape = parser.ent_count, parser.rel_count
+        self.ent_count = parser.ent_count
+        self.rel_count = parser.rel_count
+        self.shape = self.ent_count, self.rel_count
 
     def __len__(self):
         """Returns the size of the dataset."""
         return self.size
 
-    def batch(self, count, negatives=(0, 0), bern=True, workers=1, seed=1):
+    def get_batches(self, count, neg_ent=0, neg_rel=0, bern=True, workers=1, seed=1):
         """
         Separates the dataset into nearly equal parts.
         Iterates over all parts, each time yielding four arrays.
@@ -69,69 +71,74 @@ class Dataset(object):
                 model = Model()
 
                 for _ in range(epochs):
-                    for j, b in enumerate(base.batch(folds)):
+                    for j, b in enumerate(base.batches(folds)):
                         if i != j:
                             model.fit(*b)
 
-                for j, b in enumerate(base.batch(folds)):
+                for j, b in enumerate(base.batches(folds)):
                     if i == j:
                         break
                 score = model.predict(*b[:3])
         """
-        size = self.size // count
-        S = size * (1 + sum(negatives[:2]))
-        types = [np.int64, np.int64, np.int64, np.float32]
-        batch = [np.zeros(S, dtype=t) for t in types]
-        h, t, l, y = [_carray(x) for x in batch]
+        batch_size = self.size // count
+        batch_size_neg = batch_size * (1 + neg_ent + neg_rel)
+        types = (np.int64, np.int64, np.int64, np.float32)
+        batches = [np.zeros(batch_size_neg, dtype=t) for t in types]
+        h_addr, t_addr, l_addr, y_addr = [get_array_pointer(x) for x in batches]
 
         self.__library.randReset(workers, seed)
 
         sampling = self.__library.bernSampling if bern else self.__library.sampling
         for _ in range(count):
-            sampling(h, t, l, y, size, negatives[0], negatives[1], workers)
-            yield batch
+            sampling(h_addr, t_addr, l_addr, y_addr, batch_size, neg_ent, neg_rel, workers)
+            yield batches
 
-    def train(self, model, folds=1, epochs=1, batchkwargs={}, prefix='best', eachepoch=None, eachbatch=None):
+    def train(self, model_constructor, folds=1, epochs=1, batchkwargs={}, model_count=1, prefix='best', post_epoch=None,
+              post_batch=None):
         """
         A simple training algorithm over the whole set.
 
             Arguments
         model - Parameterless constructor of to-be-trained embedding models.
+        model_count - number of models to be trained. the best model is selected
         epochs - Integral amount of repeated training epochs
         folds - Integral amount of batches t
         bern - Truth value whether or not to use Bernoille distribution
         when choosing head or tail to be corrupted.
         workers - Integral amount of worker threads for generation.
         seed - Seed for the random number generator.
-        eachepoch - Callback at the end of each epoch.
-        eachbatch - Callback after each batch.
+        post_epoch - Callback at the end of each epoch.
+        post_batch - Callback after each batch.
         """
-        record = []
-        for index in range(folds):
+        meanranks = []
+        m = None
+        for index in range(model_count):
+            m = model_constructor()
 
-            m = model()
             for epoch in range(epochs):
-
-                loss = 0
-                for i, batch in enumerate(
-                        self.batch(folds, **batchkwargs)):
-                    if i == index:
-                        continue
-
+                loss = 0.0
+                batches = self.get_batches(folds, **batchkwargs)
+                for i, batch in enumerate(batches):
                     # one training batch
                     loss += m.fit(*batch)
 
-                    eachbatch and eachbatch(batch, loss)
+                    if post_batch:
+                        post_batch(batch, loss)
 
-                eachepoch and eachepoch(epoch, loss)
+                if post_epoch:
+                    post_epoch(epoch, loss)
 
             # choose the best-performing model
-            record.append(self.meanrank(m, folds, index))
-            if min(record, key=sum) == record[-1]:
+            meanrank = self.meanrank(m, folds, index)
+            meanranks.append(meanrank)
+            if min(meanranks, key=sum) == meanranks[-1]:
                 m.save(prefix)
 
+        if not m:
+            m = model_constructor()
         m.restore(prefix)
-        return m, record
+
+        return m, meanranks
 
     def meanrank(self, model, folds=1, index=0, head=True, tail=True, label=True, batchkwargs={}):
         """
@@ -154,17 +161,19 @@ class Dataset(object):
         """
 
         def rank(d, x, h, t, l):
-            y, z = self.query(h, t, l), model.predict(h, t, l)
+            y = self.query(h, t, l)
+            z = model.predict(h, t, l)
             return sum(1 for i in range(self.shape[d]) if z[i] < z[x] and not y[i])
 
         I = lambda: range(self.size // folds)
-        for i, (h, t, l, _) in enumerate(self.batch(folds, **batchkwargs)):
+        for i, (h, t, l, _) in enumerate(self.get_batches(folds, **batchkwargs)):  # TODO: change index variable
             if i == index:
                 break
         ranks = [
             (rank(0, h[i], None, t[i], l[i]) for i in I()) if head else None,
             (rank(0, t[i], h[i], None, l[i]) for i in I()) if tail else None,
-            (rank(1, l[i], h[i], t[i], None) for i in I()) if label else None]
+            (rank(1, l[i], h[i], t[i], None) for i in I()) if label else None,
+        ]
 
         return [sum(i) / self.size for i in ranks if i is not None]
 
@@ -191,22 +200,22 @@ class Dataset(object):
             if relation is None:
                 raise NotImplementedError('querying full head')
             heads = np.zeros(self.shape[0], np.bool_)
-            self.__library.query_head(_carray(heads), tail, relation)
+            self.__library.query_head(get_array_pointer(heads), tail, relation)
             return heads
         if tail is None:
             if relation is None:
                 raise NotImplementedError('querying full tail')
             tails = np.zeros(self.shape[0], np.bool_)
-            self.__library.query_tail(head, _carray(tails), relation)
+            self.__library.query_tail(head, get_array_pointer(tails), relation)
             return tails
         if relation is None:
             relations = np.zeros(self.shape[1], np.bool_)
-            self.__library.query_rel(head, tail, _carray(relations))
+            self.__library.query_rel(head, tail, get_array_pointer(relations))
             return relations
         raise NotImplementedError('querying single facts')
 
 
-def _carray(a):
+def get_array_pointer(a):
     return a.__array_interface__['data'][0]
 
 

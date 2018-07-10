@@ -15,8 +15,8 @@ model = lambda: Model(50, 1.0, base.shape, batchshape=(len(base) // 20, 2))
 
 #   Train the model.
 model, record = base.train(model, folds=20, epochs=50,
-	batchkwargs={'negatives':(1,0), 'bern':False, 'workers':4},
-	eachepoch=print, prefix="./prefix")
+                           batchkwargs={'negatives':(1,0), 'bern':False, 'workers':4},
+                           post_epoch=print, prefix="./prefix")
 print(record)
 
 #   Input testing files from benchmarks/FB15K/.

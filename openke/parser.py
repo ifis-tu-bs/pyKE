@@ -252,6 +252,9 @@ class NTriplesParser:
         # partition data
         df_train, df_valid, df_test = self.partition_data(df_triples, self.generate_valid_test, 0.8, 0.5)
 
+        if not os.path.exists(self.output_dir):
+            os.mkdir(self.output_dir)
+
         self.save_element2id(srs_ent, self.entity_file)
         self.save_element2id(srs_rel, self.relation_file)
 

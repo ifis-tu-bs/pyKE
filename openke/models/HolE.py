@@ -1,77 +1,70 @@
-#coding:utf-8
+# coding:utf-8
 from tensorflow import (get_variable as var,
                         reduce_sum as sum,
                         reduce_mean as mean,
                         maximum as max,
                         nn, sigmoid, ifft, fft, real, cast, conj, complex64)
+
 at, norm = nn.embedding_lookup, nn.l2_normalize
 from .Base import ModelClass
 
 
 def _lookup(h, t, l):
+    ent = var('ent_embeddings')
+    rel = var('rel_embeddings')
 
-	ent = var('ent_embeddings')
-	rel = var('rel_embeddings')
-
-	return at(ent, h), at(ent, t), at(rel, l)
+    return at(ent, h), at(ent, t), at(rel, l)
 
 
 def _term(h, t, l):
+    def transform(x):
+        return fft(cast(x, complex64))  # [.,d]
 
-	def transform(x):
-		return fft(cast(x, complex64)) # [.,d]
-
-	return norm(l, 1) * real(ifft(conj(transform(h)) * transform(t)))
+    return norm(l, 1) * real(ifft(conj(transform(h)) * transform(t)))
 
 
 class HolE(ModelClass):
 
+    def _score(self, h, t, l):
+        '''The term to embed triples.'''
 
-	def _score(self, h, t, l):
-		'''The term to embed triples.'''
+        return sigmoid(self._norm(_term(*_lookup(h, t, l))))
 
-		return sigmoid(self._norm(_term(*_lookup(h, t, l))))
+    def _embedding_def(self):
+        '''Initializes the variables of the model.'''
 
+        e, r, d = self.base[0], self.base[1], self.dimension[0]
 
-	def _embedding_def(self):
-		'''Initializes the variables of the model.'''
+        ent = var('ent_embeddings', [e, d])
+        rel = var('rel_embeddings', [r, d])
 
-		e, r, d = self.base[0], self.base[1], self.dimension[0]
+        yield 'ent_embeddings', ent
+        yield 'rel_embeddings', rel
 
-		ent = var('ent_embeddings', [e, d])
-		rel = var('rel_embeddings', [r, d])
+        self._entity = at(ent, self.predict_h)
+        self._relation = at(rel, self.predict_l)
 
-		yield 'ent_embeddings', ent
-		yield 'rel_embeddings', rel
+    def _loss_def(self):
+        '''Initializes the loss function.'''
 
-		self._entity = at(ent, self.predict_h)
-		self._relation = at(rel, self.predict_l)
+        def scores(h, t, r):
+            s = self._score(h, t, r)  # [b,n]
+            return mean(-s, 1)  # [b]
 
+        p = scores(*self.get_positive_instance(in_batch=True))  # [b]
+        n = scores(*self.get_negative_instance(in_batch=True))  # [b]
 
-	def _loss_def(self):
-		'''Initializes the loss function.'''
+        return sum(max(p - n + self.margin, 0))  # []
 
-		def scores(h, t, r):
-			s = self._score(h, t, r) # [b,n]
-			return mean(-s, 1) # [b]
+    def _predict_def(self):
+        '''Initializes the prediction function.'''
 
-		p = scores(*self._positive_instance(in_batch=True)) # [b]
-		n = scores(*self._negative_instance(in_batch=True)) # [b]
+        return self._score(*self.get_predict_instance())  # [b]
 
-		return sum(max(p - n + self.margin, 0)) # []
+    def __init__(self, dimension, margin, baseshape, batchshape=None, optimizer=None):
+        self.dimension = dimension,
+        self.margin = margin
+        super().__init__(baseshape, batchshape=batchshape, optimizer=optimizer)
 
-
-	def _predict_def(self):
-		'''Initializes the prediction function.'''
-
-		return self._score(*self._predict_instance()) # [b]
-
-
-	def __init__(self, dimension, margin, baseshape, batchshape=None, optimizer=None):
-		self.dimension = dimension,
-		self.margin = margin
-		super().__init__(baseshape, batchshape=batchshape, optimizer=optimizer)
-
-
-	def __str__(self):
-		return '{}-{}'.format(type(self).__name__, self.dimension[0])
+    def __str__(self):
+        return '{}-{}'.format(type(self).__name__, self.dimension[0])
