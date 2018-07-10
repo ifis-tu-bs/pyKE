@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 import ctypes
-import os
+from ctypes import cdll, c_void_p, c_int64
 
-from openke.nt2benchmark import nt2benchmark
-from openke.utils import md5
+import numpy as np
+
+from openke.parser import NTriplesParser
 
 
 class Dataset(object):
@@ -17,7 +18,7 @@ class Dataset(object):
     describing an index in an ordered table.
     """
 
-    def __init__(self, filename: str, library='./libopenke.so', temp_dir=".ifiske"):
+    def __init__(self, filename: str, library: str = './libopenke.so', temp_dir: str = ".ifiske"):
         """
         Creates a new dataset from a N-triples file.
 
@@ -25,43 +26,34 @@ class Dataset(object):
 
            The N-triples file is parsed into the original OpenKE benchmark file structure containing a file for the
            entities (entity2id.txt), for the relations (relation2id.txt) and the training file (train2id.txt). These
-           files are stored in the /tmp directory of your computer. If you change the N-triples file the entities and
-           relations get a new id.
+           files are stored by default in the `.ifiske` directory in a subdirectory named after the MD5-sum of the
+           input file. The MD5-sum is used to prevent the tool from recreating the benchmark files for.
+           If you change the N-triples file the MD5-sum changes and so the entities and relations get a new id.
 
         .. note:
 
            At the moment, no two datasets can be open at the same time!
 
-            Arguments
-        filename - Pathname to the N-triples file for training
-        entities - Upper bound of entity indexes.
-        relations - Upper bound of relation indexes.
-        library - Path to a shared object implementing the preprocessing.
-        See this project's `base/openke.hpp` for its interface.
+        :param filename: Pathname to the N-triples file for training
+        :param library: Path to a shared object implementing the preprocessing
+        :param temp_dir: Directory for storing the benchmark files. Application needs write access
         """
         global _l
         self.__library = _l[library]
 
-        # BEGIN create benchmark files
-        if not os.path.exists(temp_dir):
-            os.mkdir(temp_dir)
-        file_hashsum = md5(filename)
-        train_filename = os.path.join(temp_dir, file_hashsum, "train2id.txt")
-        if os.path.exists(train_filename):
-            print(f"Using {train_filename}")
-            with open(os.path.join(temp_dir, file_hashsum, "entity2id.txt")) as f:
-                ent_count = len(f.readlines())
-            with open(os.path.join(temp_dir, file_hashsum, "relation2id.txt")) as f:
-                rel_count = len(f.readlines())
-        else:
-            ent_count, rel_count = nt2benchmark(filename, os.path.join(temp_dir, file_hashsum), False)
-        # END create benchmark files
+        parser = NTriplesParser(filename, temp_dir)
+        parser.parse()
 
-        self.__library.importTrainFiles(ctypes.c_char_p(bytes(train_filename, 'utf-8')), ent_count, rel_count)
+        self.__library.importTrainFiles(
+            ctypes.c_char_p(bytes(parser.train_file, 'utf-8')),
+            parser.ent_count,
+            parser.rel_count,
+        )
         self.size = self.__library.getTrainTotal()
-        self.shape = ent_count, rel_count
+        self.shape = parser.ent_count, parser.rel_count
 
     def __len__(self):
+        """Returns the size of the dataset."""
         return self.size
 
     def batch(self, count, negatives=(0, 0), bern=True, workers=1, seed=1):
@@ -86,13 +78,10 @@ class Dataset(object):
                         break
                 score = model.predict(*b[:3])
         """
-
-        from numpy import float32, int64, zeros
-
         size = self.size // count
         S = size * (1 + sum(negatives[:2]))
-        types = [int64, int64, int64, float32]
-        batch = [zeros(S, dtype=t) for t in types]
+        types = [np.int64, np.int64, np.int64, np.float32]
+        batch = [np.zeros(S, dtype=t) for t in types]
         h, t, l, y = [_carray(x) for x in batch]
 
         self.__library.randReset(workers, seed)
@@ -194,7 +183,6 @@ class Dataset(object):
         A boolean array, deciding for each candidate
         whether or not the resulting statement is contained in the dataset.
         """
-        from numpy import bool_, zeros
         if head is None:
             if tail is None:
                 if relation is None:
@@ -202,17 +190,17 @@ class Dataset(object):
                 raise NotImplementedError('querying full relation')
             if relation is None:
                 raise NotImplementedError('querying full head')
-            heads = zeros(self.shape[0], bool_)
+            heads = np.zeros(self.shape[0], np.bool_)
             self.__library.query_head(_carray(heads), tail, relation)
             return heads
         if tail is None:
             if relation is None:
                 raise NotImplementedError('querying full tail')
-            tails = zeros(self.shape[0], bool_)
+            tails = np.zeros(self.shape[0], np.bool_)
             self.__library.query_tail(head, _carray(tails), relation)
             return tails
         if relation is None:
-            relations = zeros(self.shape[1], bool_)
+            relations = np.zeros(self.shape[1], np.bool_)
             self.__library.query_rel(head, tail, _carray(relations))
             return relations
         raise NotImplementedError('querying single facts')
@@ -233,15 +221,14 @@ class _Library:
     def __getitem__(self, key):
         if key in self.__dict:
             return self.__dict[key]
-        from ctypes import c_void_p as p, c_int64 as i, cdll
         l = cdll.LoadLibrary(key)
-        l.sampling.argtypes = [p, p, p, p, i, i, i, i]
+        l.sampling.argtypes = [c_void_p, c_void_p, c_void_p, c_void_p, c_int64, c_int64, c_int64, c_int64]
         l.bernSampling.argtypes = l.sampling.argtypes
-        l.query_head.argtypes = [p, i, i]
-        l.query_tail.argtypes = [i, p, i]
-        l.query_rel.argtypes = [i, i, p]
-        l.importTrainFiles.argtypes = [p, i, i]
-        l.randReset.argtypes = [i, i]
+        l.query_head.argtypes = [c_void_p, c_int64, c_int64]
+        l.query_tail.argtypes = [c_int64, c_void_p, c_int64]
+        l.query_rel.argtypes = [c_int64, c_int64, c_void_p]
+        l.importTrainFiles.argtypes = [c_void_p, c_int64, c_int64]
+        l.randReset.argtypes = [c_int64, c_int64]
         self.__dict[key] = l
         return l
 

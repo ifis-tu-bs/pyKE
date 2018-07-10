@@ -2,11 +2,11 @@
 import hashlib
 
 
-def split_nt_line(line):
+def split_nt_line(line: str):
     """
     Splits a line from a N-triples file into subject, predicate and object.
 
-    :param str line: Line from a N-triples file
+    :param line: Line from a N-triples file
     :return: tuple with subject, predicate, object
     """
     s, p, o = line.split(sep=" ", maxsplit=2)
@@ -18,9 +18,15 @@ def split_nt_line(line):
     return s, p, o
 
 
-def md5(fname):
+def md5(filename: str):
+    """
+    Returns the MD5-hashsum of a file.
+
+    :param filename: Filename
+    :return: MD5-hashsum of the file
+    """
     hash_md5 = hashlib.md5()
-    with open(fname, "rb") as f:
+    with open(filename, "rb") as f:
         for chunk in iter(lambda: f.read(4096), b""):
             hash_md5.update(chunk)
     return hash_md5.hexdigest()
