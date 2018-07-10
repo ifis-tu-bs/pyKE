@@ -138,3 +138,4 @@ venv.bak/
 benchmarks/
 result/
 .ifiske/
+tests/tmp

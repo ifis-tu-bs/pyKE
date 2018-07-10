@@ -48,6 +48,7 @@ class ModelClass(object):
         self.__parameters = dict()
 
         if optimizer is None:
+            # TODO: Add parameter for learning rate
             optimizer = tf.train.GradientDescentOptimizer(.01)
         self._norm = norm_func
 

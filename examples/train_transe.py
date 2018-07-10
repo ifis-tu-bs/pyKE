@@ -2,7 +2,7 @@ from openke import Dataset
 from openke.models import TransE
 
 # Read the dataset
-ds = Dataset("./benchmarks/fb15k_tiny.nt")
+ds = Dataset("./benchmarks/fb15k.nt")
 
 # Configure parameters
 folds = 20
@@ -16,20 +16,14 @@ def model():
 
 
 # Train the model. It is saved in the process.
-model, records = ds.train(
+model = ds.train(
     model,
     folds=folds,
     epochs=20,
-    batchkwargs=dict(
-        neg_ent=neg_ent,
-        neg_rel=neg_rel,
-        bern=False,
-        workers=4,
-    ),
     post_epoch=print,
     prefix="./result",
+    neg_ent=neg_ent,
+    neg_rel=neg_rel,
+    bern=False,
+    workers=4,
 )
-print(records)
-
-# test = Dataset("./benchmarks/FB15K/test2id.txt", E, R)
-# print(test.meanrank(model, head=False, label=False))

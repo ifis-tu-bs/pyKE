@@ -14,7 +14,7 @@ class TransE(ModelClass):
         super().__init__(ent_count, rel_count, batch_size, variants, optimizer=optimizer)
 
     def __str__(self):
-        return f"{type(self).__name__}-{self.dimension[0]}"
+        return f"{type(self).__name__}-{self.dimension}"
 
     @staticmethod
     def term(h, t, l):
