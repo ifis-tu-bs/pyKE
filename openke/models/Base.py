@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
+import json
+
 import numpy as np
 import tensorflow as tf
-from tensorflow.python.training.saver import Saver
 
 from openke import norm
 
@@ -90,7 +91,7 @@ class ModelClass(object):
                         self.__prediction = self._predict_def()
                     grads_and_vars = optimizer.compute_gradients(self.__loss)
                     self.__training = optimizer.apply_gradients(grads_and_vars)
-                self.__saver = Saver()
+                self.__saver = tf.train.Saver()
                 self.__session.run(tf.global_variables_initializer())
 
     def __iter__(self):
@@ -172,13 +173,40 @@ class ModelClass(object):
         }
         return self.__session.run(self._entity, feed)
 
-    def save(self, fileprefix):
-        """Writes the model's state into persistent memory."""
-        self.__saver.save(self.__session, fileprefix)
+    def save(self, prefix: str, step: int = None):
+        """
+        Save the model to filesystem.
 
-    def restore(self, fileprefix):
-        """Reads a model from persistent memory."""
-        self.__saver.restore(self.__session, fileprefix)
+        :param prefix: File prefix for the model
+        :param step: Step of the model (appended to prefix)
+        """
+        if step:
+            self.__saver.save(self.__session, prefix, global_step=step)
+        else:
+            self.__saver.save(self.__session, prefix)
+
+    def save_to_json(self, filename: str):
+        """
+        Save the embedding as JSON file. The JSON file contains the embedding parameters (e.g. entity and relation
+        matrices). These parameters depend on the model.
+
+        :param filename: Filename for the output JSON file
+        """
+        content = {}
+        for var_name in self.__parameters:
+            with self.__graph.as_default():
+                with self.__session.as_default():
+                    content[var_name] = self.__session.run(self.__parameters[var_name]).tolist()
+        with open(filename, "w") as f:
+            f.write(json.dumps(content))
+
+    def restore(self, prefix: str):
+        """
+        Reads a model from filesystem.
+
+        :param prefix: Model prefix of the model to laod
+        """
+        self.__saver.restore(self.__session, prefix)
 
     def get_positive_instance(self, in_batch=True):
         if in_batch:

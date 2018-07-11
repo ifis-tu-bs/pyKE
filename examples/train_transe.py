@@ -21,9 +21,12 @@ model = ds.train(
     folds=folds,
     epochs=20,
     post_epoch=print,
-    prefix="./result",
+    prefix="./TransE",
     neg_ent=neg_ent,
     neg_rel=neg_rel,
     bern=False,
     workers=4,
 )
+
+# Save the embedding to a JSON file
+model.save_to_json("TransE.json")

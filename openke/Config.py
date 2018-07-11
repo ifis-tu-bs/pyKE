@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 import ctypes
+import datetime as dt
+import os
 from ctypes import cdll, c_void_p, c_int64
 
 import numpy as np
@@ -86,7 +88,7 @@ class Dataset(object):
     #     types = (np.int64, np.int64, np.int64, np.float32)
     #     batches = [np.zeros(batch_size_neg, dtype=t) for t in types]
     #     h_addr, t_addr, l_addr, y_addr = [get_array_pointer(x) for x in batches]
-    #
+    # TODO: Move randReset
     #     self.__library.randReset(workers, seed)
     #
     #     sampling = self.__library.bernSampling if bern else self.__library.sampling
@@ -96,9 +98,10 @@ class Dataset(object):
 
     # TODO: Add selection for best-performing model
     def train(self, model_constructor, folds=1, epochs=1, model_count=1, prefix='best', post_epoch=None,
-              post_batch=None, **kwargs):
+              post_batch=None, autosave: float = 30, continue_training=True, **kwargs):
         """
-        Training algorithm over the whole dataset.
+        Training algorithm over the whole dataset. The model is saved as a TensorFlow binary at the end of the training
+        and every `autosave` minutes.
 
         :param model_constructor: Parameterless constructor of to-be-trained embedding models
         :param folds: Number of batches
@@ -107,11 +110,14 @@ class Dataset(object):
         :param prefix: Prefix to save the model
         :param post_epoch: Callback at the end of each epoch (receiving epoch number and loss)
         :param post_batch: Callback at the end of each batch (receiving batches and loss)
+        :param autosave: Time in minute after which the model is saved.
+        :param continue_training: Flag, which states whether the training process should continue with the existing
+            model. If False, the model is newly trained.
         :param kwargs: Optional kwargs for the batch creation. Possible values are: neg_ent, neg_rel, bern, workers,
             seed
         """
         # Prepare batches
-        neg_ent = kwargs.get("neg_ent", 0)
+        neg_ent = kwargs.get("neg_ent", 1)
         neg_rel = kwargs.get("neg_rel", 0)
         bern = kwargs.get("bern", True)
         workers = kwargs.get("workers", 1)
@@ -126,6 +132,10 @@ class Dataset(object):
 
         # create model
         m = model_constructor()
+        if os.path.exists(prefix + ".index") and continue_training:
+            print(f"Found model with prefix {prefix}. Continuing training ...")
+            m.restore(prefix)
+        datetime_next_save = dt.datetime.now() + dt.timedelta(minutes=autosave)
 
         for epoch in range(epochs):
             loss = 0.0
@@ -143,6 +153,12 @@ class Dataset(object):
             # post-epoch callback
             if post_epoch:
                 post_epoch(epoch, loss)
+
+            # Save
+            if dt.datetime.now() > datetime_next_save:
+                print(f"Autosave in epoch {epoch} ...")
+                m.save(prefix)
+                datetime_next_save = dt.datetime.now() + dt.timedelta(minutes=autosave)
 
         m.save(prefix)
         return m
@@ -244,16 +260,16 @@ class _Library:
     def __getitem__(self, key):
         if key in self.__dict:
             return self.__dict[key]
-        l = cdll.LoadLibrary(key)
-        l.sampling.argtypes = [c_void_p, c_void_p, c_void_p, c_void_p, c_int64, c_int64, c_int64, c_int64]
-        l.bernSampling.argtypes = l.sampling.argtypes
-        l.query_head.argtypes = [c_void_p, c_int64, c_int64]
-        l.query_tail.argtypes = [c_int64, c_void_p, c_int64]
-        l.query_rel.argtypes = [c_int64, c_int64, c_void_p]
-        l.importTrainFiles.argtypes = [c_void_p, c_int64, c_int64]
-        l.randReset.argtypes = [c_int64, c_int64]
-        self.__dict[key] = l
-        return l
+        lib = cdll.LoadLibrary(key)
+        lib.sampling.argtypes = [c_void_p, c_void_p, c_void_p, c_void_p, c_int64, c_int64, c_int64, c_int64]
+        lib.bernSampling.argtypes = lib.sampling.argtypes
+        lib.query_head.argtypes = [c_void_p, c_int64, c_int64]
+        lib.query_tail.argtypes = [c_int64, c_void_p, c_int64]
+        lib.query_rel.argtypes = [c_int64, c_int64, c_void_p]
+        lib.importTrainFiles.argtypes = [c_void_p, c_int64, c_int64]
+        lib.randReset.argtypes = [c_int64, c_int64]
+        self.__dict[key] = lib
+        return lib
 
 
 _l = _Library()

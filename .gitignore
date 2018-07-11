@@ -139,3 +139,10 @@ benchmarks/
 result/
 .ifiske/
 tests/tmp
+
+# Tensorflow models
+checkpoint
+*.data-*
+*.index
+/*.json
+*.meta
