@@ -9,7 +9,7 @@ def split_nt_line(line: str):
     :param line: Line from a N-triples file
     :return: tuple with subject, predicate, object
     """
-    s, p, o = line.split(sep=" ", maxsplit=2)
+    s, p, o = line.split(maxsplit=2)
     s = s.lstrip("<").rstrip(">")
     p = p.lstrip("<").rstrip(">")
     o = o.strip().rstrip(" .")

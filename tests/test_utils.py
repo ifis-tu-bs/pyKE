@@ -5,8 +5,10 @@ from openke.utils import split_nt_line
 
 class TestSplitNTriplesLine(TestCase):
     def setUp(self):
-        self.simple_line = "<http://example.org/#spiderman> <http://www.perceive.net/schemas/relationship/enemyOf> " \
-                           "<http://example.org/#green-goblin> .\n"
+        self.simple_line_whitespace = "<http://example.org/#spiderman> <http://www.perceive.net/schemas/relati" \
+                                      "onship/enemyOf> <http://example.org/#green-goblin> .\n"
+        self.simple_line_tabs = "<http://example.org/#spiderman>\t<http://www.perceive.net/schemas/relationship/" \
+                                "enemyOf>\t<http://example.org/#green-goblin> .\n"
         self.literal_xmls = "<http://example.org/show/218> <http://www.w3.org/2000/01/rdf-schema#label> " \
                             "\"That Seventies Show\"^^<http://www.w3.org/2001/XMLSchema#string> ."
         self.literal_untyped = "<http://example.org/show/218> <http://www.w3.org/2000/01/rdf-schema#label> " \
@@ -23,8 +25,14 @@ class TestSplitNTriplesLine(TestCase):
         self.literal_double = "<http://en.wikipedia.org/wiki/Helium> <http://example.org/elements/specificGravity> " \
                               "\"1.663E-4\"^^<http://www.w3.org/2001/XMLSchema#double> ."
 
-    def test_split_simple(self):
-        s, p, o = split_nt_line(self.simple_line)
+    def test_split_simple_whitespace(self):
+        s, p, o = split_nt_line(self.simple_line_whitespace)
+        self.assertEqual(s, "http://example.org/#spiderman")
+        self.assertEqual(p, "http://www.perceive.net/schemas/relationship/enemyOf")
+        self.assertEqual(o, "http://example.org/#green-goblin")
+
+    def test_split_simple_tabs(self):
+        s, p, o = split_nt_line(self.simple_line_tabs)
         self.assertEqual(s, "http://example.org/#spiderman")
         self.assertEqual(p, "http://www.perceive.net/schemas/relationship/enemyOf")
         self.assertEqual(o, "http://example.org/#green-goblin")
