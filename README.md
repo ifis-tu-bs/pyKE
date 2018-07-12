@@ -1,6 +1,6 @@
-# ifisKE
+# pyKE
 
-An Open-source Framework for Knowledge Embedding forked from [github.org/thunlp/OpenKE](http://github.org/thunlp/OpenKE).
+An Open-source library for Knowledge Embedding forked from [github.org/thunlp/OpenKE](http://github.org/thunlp/OpenKE).
 The original API changed drastically to look more intuitively on a python notebook.
 
 
@@ -16,17 +16,13 @@ For each specific model, it is implemented by TensorFlow with Python interfaces 
 1. Clone repository and enter directory
 
     ```
-    git clone https://github.com/ifis-tu-bs/KnowledgeEmbedding.git
-    cd KnowledgeEmbedding
+    git clone https://github.com/ifis-tu-bs/pyKE.git
+    cd pyKE
     ```
 
-1. Install requirements
+1. Install package
 
-	`pip install -r requirements.txt`
-
-3. Build the library
-
-	`./make.sh`
+	`python setup.py install`
 
 
 ## Data
@@ -39,8 +35,8 @@ Make sure to separate your data early on into at least two separate parts for tr
 
 To compute a knowledge graph embedding, first import datasets and set configure parameters for training, then train models and export results. For instance, we write an example_train_transe.py to train TransE:
 
-	from openke import Dataset
-    from openke.models import TransE
+	from pyke.dataset import Dataset
+    from pyke.models import TransE
     
     # Read the dataset
     ds = Dataset("./benchmarks/fb15k.nt")
@@ -72,24 +68,25 @@ To compute a knowledge graph embedding, first import datasets and set configure 
     # Save the embedding to a JSON file
     model.save_to_json("TransE.json")
 
+
 ## Interfaces
 
-### Config
+### Dataset
 
-`class openke.Dataset` in `openke/Config.py` sets up the native library, handles the currently loaded dataset and defines the basic training algorithm.
+`class pyke.dataset.Dataset` sets up the native library, handles the currently loaded dataset and defines the basic training algorithm.
 
 
-### Model Class
+### Base model class
 
-`class openke.models.ModelClass` in `openke/models/Base.py` declares the methods that all implemented model classes share, including the loss function neccessairy for training (inserting information into the model) and prediction (aka. retrieving information from the model).
+`class pyke.models.BaseModel` declares the methods that all implemented model classes share, including the loss function neccessairy for training (inserting information into the model) and prediction (aka. retrieving information from the model).
 This project implements the following model classes:
 
-	class openke.models.RESCAL
-	class openke.models.TransE
-	class openke.models.TransH
-	class openke.models.TransR
-	class openke.models.TransD
-	class openke.models.HolE
-	class openke.models.ComplEx
-	class openke.models.DistMult
+	class pyke.models.RESCAL
+	class pyke.models.TransE
+	class pyke.models.TransH
+	class pyke.models.TransR
+	class pyke.models.TransD
+	class pyke.models.HolE
+	class pyke.models.ComplEx
+	class pyke.models.DistMult
 
