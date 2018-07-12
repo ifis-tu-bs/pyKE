@@ -28,8 +28,10 @@ uint64_t randd(uint64_t id)
 uint64_t rand_max(uint64_t id, uint64_t x)
 {
 	uint64_t res = randd(id) % x;
+	/* warning: comparision of unsigned expression is always false
 	while (res < 0)
 		res += x;
+    */
 	return res;
 }
 

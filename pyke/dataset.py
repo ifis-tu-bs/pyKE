@@ -20,7 +20,7 @@ class Dataset(object):
     describing an index in an ordered table.
     """
 
-    def __init__(self, filename: str, library: str = './libopenke.so', temp_dir: str = ".pyke"):
+    def __init__(self, filename: str, temp_dir: str = ".pyke"):
         """
         Creates a new dataset from a N-triples file.
 
@@ -37,11 +37,9 @@ class Dataset(object):
            At the moment, no two datasets can be open at the same time!
 
         :param filename: Pathname to the N-triples file for training
-        :param library: Path to a shared object implementing the preprocessing
         :param temp_dir: Directory for storing the benchmark files. Application needs write access
         """
-        global _l
-        self.__library = _l[library]
+        self.__library = Library.get_library(temp_dir)
 
         parser = NTriplesParser(filename, temp_dir)
         parser.parse()
@@ -247,6 +245,3 @@ def get_array_pointer(a):
     :return: Memory address of the array
     """
     return a.__array_interface__['data'][0]
-
-
-_l = Library()
