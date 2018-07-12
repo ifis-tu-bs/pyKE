@@ -1,13 +1,24 @@
 from pyke.dataset import Dataset
+from pyke.embedding import Embedding
 from pyke.models import TransE
-
-# Read the dataset
-ds = Dataset("./benchmarks/fb15k.nt")
 
 # Configure parameters
 folds = 20
 neg_ent = 2
 neg_rel = 0
+
+# Read the dataset
+ds = Dataset("./benchmarks/fb15k.nt")
+em = Embedding(
+    ds,
+    TransE,
+    folds=folds,
+    epochs=20,
+    neg_ent=neg_ent,
+    neg_rel=neg_rel,
+    bern=False,
+    workers=4,
+)
 
 
 # Set the knowledge embedding model class.
@@ -16,17 +27,11 @@ def model():
 
 
 # Train the model. It is saved in the process.
-model = ds.train(
+em.train(
     model,
-    folds=folds,
-    epochs=20,
     post_epoch=print,
     prefix="./TransE",
-    neg_ent=neg_ent,
-    neg_rel=neg_rel,
-    bern=False,
-    workers=4,
 )
 
 # Save the embedding to a JSON file
-model.save_to_json("TransE.json")
+em.save_to_json("TransE.json")

@@ -30,3 +30,13 @@ def md5(filename: str):
         for chunk in iter(lambda: f.read(4096), b""):
             hash_md5.update(chunk)
     return hash_md5.hexdigest()
+
+
+def get_array_pointer(a):
+    """
+    Returns the address of the numpy array.
+
+    :param a: Numpy array
+    :return: Memory address of the array
+    """
+    return a.__array_interface__['data'][0]

@@ -1,12 +1,11 @@
 # -*- coding: utf-8 -*-
 import ctypes
-import datetime as dt
-import os
 
 import numpy as np
 
 from pyke.library import Library
 from pyke.parser import NTriplesParser
+from pyke.utils import get_array_pointer
 
 
 class Dataset(object):
@@ -58,147 +57,6 @@ class Dataset(object):
         """Returns the size of the dataset."""
         return self.size
 
-    # FIXME: Function produces strange behaviour (see #7)
-    # def get_batches(self, count, neg_ent=0, neg_rel=0, bern=True, workers=1, seed=1):
-    #     """
-    #     Separates the dataset into nearly equal parts.
-    #     Iterates over all parts, each time yielding four arrays.
-    #     This method can be used for cross-validation as shown below:
-    #
-    #         assert numpy, base, folds, epochs, Model
-    #
-    #         for i in range(folds):
-    #
-    #             model = Model()
-    #
-    #             for _ in range(epochs):
-    #                 for j, b in enumerate(base.batches(folds)):
-    #                     if i != j:
-    #                         model.fit(*b)
-    #
-    #             for j, b in enumerate(base.batches(folds)):
-    #                 if i == j:
-    #                     break
-    #             score = model.predict(*b[:3])
-    #     """
-    #     batch_size = self.size // count
-    #     batch_size_neg = batch_size * (1 + neg_ent + neg_rel)
-    #     types = (np.int64, np.int64, np.int64, np.float32)
-    #     batches = [np.zeros(batch_size_neg, dtype=t) for t in types]
-    #     h_addr, t_addr, l_addr, y_addr = [get_array_pointer(x) for x in batches]
-    # TODO: Move randReset
-    #     self.__library.randReset(workers, seed)
-    #
-    #     sampling = self.__library.bernSampling if bern else self.__library.sampling
-    #     for _ in range(count):
-    #         sampling(h_addr, t_addr, l_addr, y_addr, batch_size, neg_ent, neg_rel, workers)
-    #         yield batches
-
-    # TODO: Add selection for best-performing model
-    def train(self, model_constructor, folds=1, epochs=1, model_count=1, prefix='best', post_epoch=None,
-              post_batch=None, autosave: float = 30, continue_training=True, **kwargs):
-        """
-        Training algorithm over the whole dataset. The model is saved as a TensorFlow binary at the end of the training
-        and every `autosave` minutes.
-
-        :param model_constructor: Parameterless constructor of to-be-trained embedding models
-        :param folds: Number of batches
-        :param epochs: Number of epochs
-        :param model_count: Number of models to be trained. The best model is selected
-        :param prefix: Prefix to save the model
-        :param post_epoch: Callback at the end of each epoch (receiving epoch number and loss)
-        :param post_batch: Callback at the end of each batch (receiving batches and loss)
-        :param autosave: Time in minute after which the model is saved.
-        :param continue_training: Flag, which states whether the training process should continue with the existing
-            model. If False, the model is newly trained.
-        :param kwargs: Optional kwargs for the batch creation. Possible values are: neg_ent, neg_rel, bern, workers,
-            seed
-        """
-        # Prepare batches
-        neg_ent = kwargs.get("neg_ent", 1)
-        neg_rel = kwargs.get("neg_rel", 0)
-        bern = kwargs.get("bern", True)
-        workers = kwargs.get("workers", 1)
-        seed = kwargs.get("seed", 1)
-        batch_size = self.size // folds
-        batch_size_neg = batch_size * (1 + neg_ent + neg_rel)
-        self.__library.randReset(workers, seed)
-        sampling_func = self.__library.bernSampling if bern else self.__library.sampling
-        types = (np.int64, np.int64, np.int64, np.float32)
-        batches = [np.zeros(batch_size_neg, dtype=t) for t in types]
-        h_addr, t_addr, l_addr, y_addr = [get_array_pointer(x) for x in batches]
-
-        # create model
-        m = model_constructor()
-        if os.path.exists(prefix + ".index") and continue_training:
-            print(f"Found model with prefix {prefix}. Continuing training ...")
-            m.restore(prefix)
-        datetime_next_save = dt.datetime.now() + dt.timedelta(minutes=autosave)
-
-        for epoch in range(epochs):
-            loss = 0.0
-            for _ in range(folds):
-                # create batch
-                sampling_func(h_addr, t_addr, l_addr, y_addr, batch_size, neg_ent, neg_rel, workers)
-
-                # train step
-                loss += m.fit(*batches)
-
-                # post-batch callback
-                if post_batch:
-                    post_batch(batches, loss)
-
-            # post-epoch callback
-            if post_epoch:
-                post_epoch(epoch, loss)
-
-            # Save
-            if dt.datetime.now() > datetime_next_save:
-                print(f"Autosave in epoch {epoch} ...")
-                m.save(prefix)
-                datetime_next_save = dt.datetime.now() + dt.timedelta(minutes=autosave)
-
-        m.save(prefix)
-        return m
-
-    # FIXME: Function currently uses get_batches(), which produces strange behaviour (see #7)
-    # def meanrank(self, model, folds=1, index=0, head=True, tail=True, label=True, batchkwargs={}):
-    #     """
-    #     Computes the mean rank of link prediction of one batch of the data.
-    #     Returns floating values between 0 and size-1
-    #     where lower results denote better models.
-    #     The return value consists of up to three values,
-    #     one for each of the columns 'head', 'tail' and 'label'.
-    #
-    #         Arguments
-    #     model - The to-be-tested embedding model.
-    #     folds - Amount of batches the data is separated.
-    #     index - Identifier of the tested batch.
-    #     head, tail, label - Truth values denoting
-    #     whether or not the respecting column should be tested.
-    #
-    #         Note
-    #     This test filters only 'false' facts evaluating better than the question.
-    #     See `openke.meanrank` for the unfiltered, or 'raw', version.
-    #     """
-    #
-    #     def rank(d, x, h, t, l):
-    #         y = self.query(h, t, l)
-    #         z = model.predict(h, t, l)
-    #         return sum(1 for i in range(self.shape[d]) if z[i] < z[x] and not y[i])
-    #
-    #     I = lambda: range(self.size // folds)
-    #     for i, (h, t, l, _) in enumerate(self.get_batches(folds, **batchkwargs)):  # TODO: change index variable
-    #         if i == index:
-    #             break
-    #     ranks = [
-    #         (rank(0, h[i], None, t[i], l[i]) for i in I()) if head else None,
-    #         (rank(0, t[i], h[i], None, l[i]) for i in I()) if tail else None,
-    #         (rank(1, l[i], h[i], t[i], None) for i in I()) if label else None,
-    #     ]
-    #
-    #     return [sum(i) / self.size for i in ranks if i is not None]
-
     def query(self, head, tail, relation):
         """
         Checks which facts are stored in the entire dataset.
@@ -235,13 +93,3 @@ class Dataset(object):
             self.__library.query_rel(head, tail, get_array_pointer(relations))
             return relations
         raise NotImplementedError('querying single facts')
-
-
-def get_array_pointer(a):
-    """
-    Returns the address of the numpy array.
-
-    :param a: Numpy array
-    :return: Memory address of the array
-    """
-    return a.__array_interface__['data'][0]
