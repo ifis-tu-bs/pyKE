@@ -1,6 +1,6 @@
 from unittest import TestCase
 
-from openke.utils import split_nt_line
+from pyke.utils import split_nt_line
 
 
 class TestSplitNTriplesLine(TestCase):

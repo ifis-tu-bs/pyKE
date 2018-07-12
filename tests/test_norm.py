@@ -2,7 +2,7 @@ from unittest import TestCase
 
 import tensorflow as tf
 
-from openke.norm import l1, l2
+from pyke.norm import l1, l2
 
 
 class TestNorm(TestCase):

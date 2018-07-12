@@ -4,7 +4,7 @@ from tensorflow import (get_variable as var,
                         nn)
 
 at, softplus = nn.embedding_lookup, nn.softplus
-from .Base import ModelClass
+from .base import BaseModel
 
 
 def _lookup(h, t, l):
@@ -18,7 +18,7 @@ def _term(h, t, l):
     return h * l * t
 
 
-class DistMult(ModelClass):
+class DistMult(BaseModel):
 
     def _score(self, h, t, l):
         '''The term to score triples.'''

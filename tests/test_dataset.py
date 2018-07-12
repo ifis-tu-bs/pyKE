@@ -1,7 +1,7 @@
 import os
 from unittest import TestCase
 
-from openke import Dataset
+from pyke.dataset import Dataset
 
 
 class TestDataset(TestCase):

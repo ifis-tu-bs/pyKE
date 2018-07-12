@@ -4,7 +4,7 @@ from tensorflow import (get_variable as var,
                         nn)
 
 at, softplus = nn.embedding_lookup, nn.softplus
-from .Base import ModelClass
+from .base import BaseModel
 
 
 def _term(hRe, hIm, tRe, tIm, rRe, rIm):
@@ -25,7 +25,7 @@ def _lookup(h, t, r):
     return at(eRe, h), at(eRe, t), at(rRe, r), at(eIm, h), at(eIm, t), at(rIm, r)
 
 
-class ComplEx(ModelClass):
+class ComplEx(BaseModel):
 
     def _score(self, h, t, r):
         '''The term to embed triples.'''

@@ -2,11 +2,11 @@
 import ctypes
 import datetime as dt
 import os
-from ctypes import cdll, c_void_p, c_int64
 
 import numpy as np
 
-from openke.parser import NTriplesParser
+from pyke.library import Library
+from pyke.parser import NTriplesParser
 
 
 class Dataset(object):
@@ -20,7 +20,7 @@ class Dataset(object):
     describing an index in an ordered table.
     """
 
-    def __init__(self, filename: str, library: str = './libopenke.so', temp_dir: str = ".ifiske"):
+    def __init__(self, filename: str, library: str = './libopenke.so', temp_dir: str = ".pyke"):
         """
         Creates a new dataset from a N-triples file.
 
@@ -28,7 +28,7 @@ class Dataset(object):
 
            The N-triples file is parsed into the original OpenKE benchmark file structure containing a file for the
            entities (entity2id.txt), for the relations (relation2id.txt) and the training file (train2id.txt). These
-           files are stored by default in the `.ifiske` directory in a subdirectory named after the MD5-sum of the
+           files are stored by default in the `.pyke` directory in a subdirectory named after the MD5-sum of the
            input file. The MD5-sum is used to prevent the tool from recreating the benchmark files for.
            If you change the N-triples file the MD5-sum changes and so the entities and relations get a new id.
 
@@ -249,30 +249,4 @@ def get_array_pointer(a):
     return a.__array_interface__['data'][0]
 
 
-class _Library:
-    """
-    Manages the connection to the library.
-    """
-
-    def __init__(self):
-        self.__dict = dict()
-
-    def __getitem__(self, key):
-        if key in self.__dict:
-            return self.__dict[key]
-        lib = cdll.LoadLibrary(key)
-        lib.sampling.argtypes = [c_void_p, c_void_p, c_void_p, c_void_p, c_int64, c_int64, c_int64, c_int64]
-        lib.bernSampling.argtypes = lib.sampling.argtypes
-        lib.query_head.argtypes = [c_void_p, c_int64, c_int64]
-        lib.query_tail.argtypes = [c_int64, c_void_p, c_int64]
-        lib.query_rel.argtypes = [c_int64, c_int64, c_void_p]
-        lib.importTrainFiles.argtypes = [c_void_p, c_int64, c_int64]
-        lib.randReset.argtypes = [c_int64, c_int64]
-        self.__dict[key] = lib
-        return lib
-
-
-_l = _Library()
-
-# FIXME backwards-compatibility
-Config = Dataset
+_l = Library()

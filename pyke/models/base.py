@@ -4,10 +4,10 @@ import json
 import numpy as np
 import tensorflow as tf
 
-from openke import norm
+from pyke import norm
 
 
-class ModelClass(object):
+class BaseModel(object):
     """Properties and behaviour that different embedding models share."""
 
     def __init__(self, ent_count, rel_count, batch_size=0, variants=0, optimizer=None, norm_func=norm.l1,

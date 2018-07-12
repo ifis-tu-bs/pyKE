@@ -1,4 +1,4 @@
-from .Base import ModelClass
+from .base import BaseModel
 from .TransE import TransE
 from .TransH import TransH
 from .TransD import TransD

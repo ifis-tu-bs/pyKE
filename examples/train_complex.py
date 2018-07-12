@@ -1,5 +1,5 @@
 from openke import Dataset
-from openke.models import ComplEx as Model
+from pyke.models import ComplEx as Model
 
 #   Input training files from benchmarks/FB15K/ folder.
 with open("./benchmarks/FB15K/entity2id.txt") as f:

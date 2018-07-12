@@ -1,5 +1,5 @@
-from openke import Dataset
-from openke.models import TransE
+from pyke.dataset import Dataset
+from pyke.models import TransE
 
 # Read the dataset
 ds = Dataset("./benchmarks/fb15k.nt")

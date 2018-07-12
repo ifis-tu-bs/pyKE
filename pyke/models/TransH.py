@@ -3,53 +3,57 @@ from tensorflow import (get_variable as var,
                         reduce_sum as sum,
                         reduce_mean as mean,
                         maximum as max,
-                        nn, sigmoid, ifft, fft, real, cast, conj, complex64)
+                        nn)
 
-at, norm = nn.embedding_lookup, nn.l2_normalize
-from .Base import ModelClass
+at = nn.embedding_lookup
+from .base import BaseModel
 
 
 def _lookup(h, t, l):
+    nor = var('normal_vectors')
     ent = var('ent_embeddings')
     rel = var('rel_embeddings')
 
-    return at(ent, h), at(ent, t), at(rel, l)
+    return at(ent, h), at(ent, t), at(nor, l), at(rel, l)
 
 
-def _term(h, t, l):
-    def transform(x):
-        return fft(cast(x, complex64))  # [.,d]
+def _term(h, t, n, l):
+    from tensorflow import nn
+    n = nn.l2_normalize(n)
+    transfer = lambda e: e - sum(e * n, -1, keepdims=True) * n
+    return transfer(h) + l - transfer(t)
 
-    return norm(l, 1) * real(ifft(conj(transform(h)) * transform(t)))
 
-
-class HolE(ModelClass):
+class TransH(BaseModel):
 
     def _score(self, h, t, l):
-        '''The term to embed triples.'''
+        """The term to score triples."""
 
-        return sigmoid(self._norm(_term(*_lookup(h, t, l))))
+        return self._norm(_term(*_lookup(h, t, l)))
 
     def _embedding_def(self):
-        '''Initializes the variables of the model.'''
+        """Initializes the variables of the model."""
 
         e, r, d = self.base[0], self.base[1], self.dimension[0]
 
-        ent = var('ent_embeddings', [e, d])
-        rel = var('rel_embeddings', [r, d])
+        # Defining required parameters of the model, including embeddings of entities and relations, and normal vectors of planes
+        ent = var("ent_embeddings", [e, d])
+        rel = var("rel_embeddings", [r, d])
+        nor = var("normal_vectors", [r, d])
 
         yield 'ent_embeddings', ent
         yield 'rel_embeddings', rel
+        yield 'normal_vectors', nor
 
         self._entity = at(ent, self.predict_h)
         self._relation = at(rel, self.predict_l)
 
     def _loss_def(self):
-        '''Initializes the loss function.'''
+        """Initializes the loss function."""
 
-        def scores(h, t, r):
-            s = self._score(h, t, r)  # [b,n]
-            return mean(-s, 1)  # [b]
+        def scores(h, t, l):
+            s = self._score(h, t, l)  # [b,n]
+            return mean(s, 1)  # [b]
 
         p = scores(*self.get_positive_instance(in_batch=True))  # [b]
         n = scores(*self.get_negative_instance(in_batch=True))  # [b]
@@ -57,11 +61,12 @@ class HolE(ModelClass):
         return sum(max(p - n + self.margin, 0))  # []
 
     def _predict_def(self):
-        '''Initializes the prediction function.'''
+        """Initializes the prediction function."""
 
         return self._score(*self.get_predict_instance())  # [b]
 
-    def __init__(self, dimension, margin, baseshape, batchshape=None, optimizer=None):
+    def __init__(self, dimension, margin, baseshape, batchshape=None, \
+                 optimizer=None):
         self.dimension = dimension,
         self.margin = margin
         super().__init__(baseshape, batchshape=batchshape, optimizer=optimizer)

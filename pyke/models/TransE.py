@@ -1,12 +1,12 @@
 # coding:utf-8
 import tensorflow as tf
 
-from openke.models import ModelClass
+from pyke.models import BaseModel
 
 _at = tf.nn.embedding_lookup
 
 
-class TransE(ModelClass):
+class TransE(BaseModel):
     # TODO: Add **kwargs
     def __init__(self, dimension, margin, ent_count, rel_count, batch_size=0, variants=0, optimizer=None):
         self.dimension = dimension

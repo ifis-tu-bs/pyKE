@@ -12,7 +12,7 @@ from typing import List, Dict, Tuple
 import numpy as np
 import pandas as pd
 
-from openke.utils import split_nt_line, md5
+from pyke.utils import split_nt_line, md5
 
 
 class NTriplesParser:

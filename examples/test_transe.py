@@ -1,5 +1,5 @@
 from openke import Dataset
-from openke.models import TransE
+from pyke.models import TransE
 
 #   Input training files from benchmarks/FB15K/.
 with open("./benchmarks/FB15K/entity2id.txt") as f:

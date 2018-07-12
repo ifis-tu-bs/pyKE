@@ -137,7 +137,7 @@ venv.bak/
 .idea/
 benchmarks/
 result/
-.ifiske/
+.pyke/
 tests/tmp
 
 # Tensorflow models
