@@ -10,7 +10,7 @@ from pyke import norm
 class BaseModel(object):
     """Properties and behaviour that different embedding models share."""
 
-    def __init__(self, ent_count, rel_count, batch_size=0, variants=0, optimizer=None, norm_func=norm.l1,
+    def __init__(self, ent_count=None, rel_count=None, batch_size=0, variants=0, optimizer=None, norm_func=norm.l1,
                  per_process_gpu_memory_fraction=0.5):
         """
         Creates a new model.

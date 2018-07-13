@@ -39,50 +39,33 @@ To compute a knowledge graph embedding, first import datasets and set configure 
     from pyke.embedding import Embedding
     from pyke.models import TransE
     
-    # Configure parameters
-    folds = 20
-    neg_ent = 2
-    neg_rel = 0
-    
     # Read the dataset
-    ds = Dataset("./benchmarks/fb15k.nt")
-    em = Embedding(
-        ds,
+    dataset = Dataset("./benchmarks/fb15k.nt")
+    embedding = Embedding(
+        dataset,
         TransE,
-        folds=folds,
+        folds=20,
         epochs=20,
-        neg_ent=neg_ent,
-        neg_rel=neg_rel,
+        neg_ent=1,
+        neg_rel=0,
         bern=False,
         workers=4,
+        dimension=50,  # TransE-specific
+        margin=1.0,  # TransE-specific
     )
-    
-    
-    # Set the knowledge embedding model class.
-    def model():
-        return TransE(50, 1.0, ds.ent_count, ds.rel_count, batch_size=ds.size // folds, variants=1 + neg_rel + neg_ent)
-    
     
     # Train the model. It is saved in the process.
-    em.train(
-        model,
-        post_epoch=print,
-        prefix="./TransE",
-    )
+    embedding.train(prefix="./TransE", post_epoch=print)
     
     # Save the embedding to a JSON file
-    em.save_to_json("TransE.json")
+    embedding.save_to_json("TransE.json")
 
 
 ## Interfaces
 
-### Embedding
-
-The class `pyke.embedding.Embedding` is the embedding.
-
-### Dataset
-
-The class `pyke.dataset.Dataset` sets up the native library, handles the currently loaded dataset and defines the basic training algorithm.
+The class `pyke.embedding.Embedding` is the embedding interface you should use. Initialize your data set in form
+of a N-triples file with the class `pyke.dataset.Dataset`. Both classes do some background stuff which should work
+**if you use a UNIX a based system**.
 
 
 ### Base model class

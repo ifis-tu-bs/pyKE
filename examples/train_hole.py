@@ -1,26 +1,24 @@
-from openke import Dataset
-from pyke.models import HolE as Model
+from pyke.dataset import Dataset
+from pyke.embedding import Embedding
+from pyke.models import HolE
 
-#   Input training files from benchmarks/FB15K/ folder.
-with open("./benchmarks/FB15K/entity2id.txt") as f:
-    E = int(f.readline())
-with open("./benchmarks/FB15K/relation2id.txt") as f:
-    R = int(f.readline())
+# Read the dataset
+dataset = Dataset("./benchmarks/fb15k.nt")
+embedding = Embedding(
+    dataset,
+    HolE,
+    folds=20,
+    epochs=20,
+    neg_ent=1,
+    neg_rel=0,
+    bern=False,
+    workers=4,
+    dimension=50,  # HolE-specific
+    margin=1.0,  # HolE-specific
+)
 
-#   Read the dataset.
-base = Dataset("./benchmarks/FB15K/train2id.txt", E, R)
+# Train the model. It is saved in the process.
+embedding.train(prefix="./HolE", post_epoch=print)
 
-#   Set the knowledge embedding model class.
-model = lambda: Model(50, 1.0, base.shape, batchshape=(len(base) // 20, 2))
-
-#   Train the model.
-model, record = base.train(model, folds=20, epochs=50,
-                           batchkwargs={'negatives':(1,0), 'bern':False, 'workers':4},
-                           post_epoch=print, prefix="./prefix")
-print(record)
-
-#   Input testing files from benchmarks/FB15K/.
-test = Dataset("./benchmarks/FB15K/test2id.txt")
-
-#   Perform a test.
-print(test.meanrank(model, head=False, label=False))
+# Save the embedding to a JSON file
+embedding.save_to_json("HolE.json")

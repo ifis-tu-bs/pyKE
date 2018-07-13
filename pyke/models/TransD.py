@@ -1,77 +1,70 @@
 # coding:utf-8
-from tensorflow import (get_variable as var,
-                        reduce_sum as sum,
-                        reduce_mean as mean,
-                        maximum as max,
-                        nn)
+import tensorflow as tf
 
-at = nn.embedding_lookup
-from .base import BaseModel
+from pyke.models import BaseModel
+
+_at = tf.nn.embedding_lookup
 
 
 def _score(h, t, l):
-    '''The term to embed triples.'''
+    """The term to embed triples."""
+    ent = tf.get_variable('ent_embeddings')
+    rel = tf.get_variable('rel_embeddings')
+    etr = tf.get_variable('ent_transfer')
+    rtr = tf.get_variable('rel_transfer')
 
-    ent = var('ent_embeddings')
-    rel = var('rel_embeddings')
-    etr = var('ent_transfer')
-    rtr = var('rel_transfer')
-
-    return at(ent, h), at(etr, h), at(ent, t), at(etr, t), at(rel, l), at(rtr, l)
+    return _at(ent, h), _at(etr, h), _at(ent, t), _at(etr, t), _at(rel, l), _at(rtr, l)
 
 
 def _term(he, ht, te, tt, le, lt):
     def transfer(e, t):
-        return e + sum(e * t, -1, keepdims=True) * lt
+        return e + tf.reduce_sum(e * t, -1, keepdims=True) * lt
 
     return transfer(he, ht) + le - transfer(te, tt)
 
 
 class TransD(BaseModel):
+    def __init__(self, dimension, margin, **kwargs):
+        self.dimension = dimension
+        self.margin = margin
+        super().__init__(**kwargs)
+
+    def __str__(self):
+        return '{}-{}'.format(type(self).__name__, self.dimension)
 
     def _score(self, h, t, l):
+        # TODO: Implement lookup
         return self._norm(_term(*_lookup(h, t, l)))
 
     def _embedding_def(self):
-        '''Initializes the variables of the model.'''
+        """Initializes the variables of the model."""
 
-        e, r, d = self.base[0], self.base[1], self.dimension[0]
-
-        ent = var("ent_embeddings", [e, d])
-        rel = var("rel_embeddings", [r, d])
-        etr = var("ent_transfer", [e, d])
-        rtr = var("rel_transfer", [r, d])
+        ent = tf.get_variable("ent_embeddings", [self.ent_count, self.dimension])
+        rel = tf.get_variable("rel_embeddings", [self.rel_count, self.dimension])
+        etr = tf.get_variable("ent_transfer", [self.ent_count, self.dimension])
+        rtr = tf.get_variable("rel_transfer", [self.rel_count, self.dimension])
 
         yield 'ent_embeddings', ent
         yield 'rel_embeddings', rel
         yield 'ent_transfer', etr
         yield 'rel_transfer', rtr
 
-        self._entity = at(ent, self.predict_h)
-        self._relation = at(rel, self.predict_l)
+        self._entity = _at(ent, self.predict_h)
+        self._relation = _at(rel, self.predict_l)
 
     def _loss_def(self):
-        '''Initializes the loss function.'''
+        """Initializes the loss function."""
 
         def scores(h, t, l):
             s = _score(h, t, l)  # [b,n]
-            return mean(s, 1)  # [b]
+            return tf.reduce_mean(s, 1)  # [b]
 
         p = scores(*self.get_positive_instance(in_batch=True))  # [b]
         n = scores(*self.get_negative_instance(in_batch=True))  # [b]
 
-        return sum(max(p - n + self.margin, 0))  # []
+        return tf.reduce_sum(tf.maximum(p - n + self.margin, 0))  # []
 
     def _predict_def(self):
-        '''Initializes the prediction function.'''
+        """Initializes the prediction function."""
 
         return _score(*self.get_predict_instance())  # [b]
-
-    def __init__(self, dimension, margin, baseshape, batchshape=None, \
-                 optimizer=None):
-        self.dimension = dimension,
-        self.margin = margin
-        super().__init__(baseshape, batchshape=batchshape, optimizer=optimizer)
-
-    def __str__(self):
-        return '{}-{}'.format(type(self).__name__, self.dimension[0])

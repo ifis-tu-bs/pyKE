@@ -7,11 +7,10 @@ _at = tf.nn.embedding_lookup
 
 
 class TransE(BaseModel):
-    # TODO: Add **kwargs
-    def __init__(self, dimension, margin, ent_count, rel_count, batch_size=0, variants=0, optimizer=None):
+    def __init__(self, dimension, margin, **kwargs):
         self.dimension = dimension
         self.margin = margin
-        super().__init__(ent_count, rel_count, batch_size, variants, optimizer=optimizer)
+        super().__init__(**kwargs)
 
     def __str__(self):
         return f"{type(self).__name__}-{self.dimension}"

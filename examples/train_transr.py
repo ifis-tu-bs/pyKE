@@ -1,32 +1,26 @@
-from openke import Dataset
-from pyke.models import TransR as Model
+from pyke.dataset import Dataset
+from pyke.embedding import Embedding
+from pyke.models import TransR
 
-#   Input training files from benchmarks/FB15K/ folder.
-with open("./benchmarks/FB15K/entity2id.txt") as f:
-    E = int(f.readline())
-with open("./benchmarks/FB15K/relation2id.txt") as f:
-    R = int(f.readline())
+# Read the dataset
+dataset = Dataset("./benchmarks/fb15k.nt")
+embedding = Embedding(
+    dataset,
+    TransR,
+    folds=20,
+    epochs=20,
+    neg_ent=1,
+    neg_rel=0,
+    bern=False,
+    workers=4,
+    ent_dim=50,  # TransR-specific
+    rel_dim=10,  # TransR-specific
+    margin=1.0,  # TransR-specific
+)
 
-#   Read the dataset.
-base = Dataset("./benchmarks/FB15K/train2id.txt", E, R)
+# Train the model. It is saved in the process.
+# TODO: Currently not working
+embedding.train(prefix="./TransR", post_epoch=print)
 
-#   Set the knowledge embedding model class.
-from tensorflow.python.training.gradient_descent import GradientDescentOptimizer as optimizer
-model = lambda: Model(50, 10, 1., base.shape, batchshape=(len(base) // 20, 2),
-		optimizer=optimizer(.0001))
-
-#   Train the model.
-def ee(epoch, loss):
-	from math import isnan
-	if isnan(loss):
-		raise TypeError(loss)
-	print(epoch, loss)
-model, record = base.train(model, folds=20, epochs=20,
-                           batchkwargs={'negatives':(1,0), 'bern':False, 'workers':4},
-                           post_epoch=ee, prefix="./result")
-print(record)
-
-#   Input testing files from benchmarks/FB15K/.
-#   Perform a test
-test = Dataset("./benchmarks/FB15K/test2id.txt", E, R)
-print(test.meanrank(model, head=False, label=False))
+# Save the embedding to a JSON file
+embedding.save_to_json("TransR.json")
