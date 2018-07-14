@@ -7,7 +7,7 @@ Module contains different parsers to support multiple file types.
 """
 import os
 import sys
-from typing import List, Dict, Tuple
+from typing import List, Dict, Tuple, Any
 
 import numpy as np
 import pandas as pd
@@ -78,7 +78,7 @@ class NTriplesParser:
     @staticmethod
     def map_triple_lines(triple_lines: List[str]):
         """
-        Assings each entity and each relation an id and creates a list of triples consisting of the ids.
+        Assigns each entity and each relation an id and creates a list of triples consisting of the ids.
 
         :param triple_lines: List of Triples
         :return: Tuple with the mapping of entity -> ID, relation -> ID and a list of the triples with the integer ids.
@@ -170,12 +170,12 @@ class NTriplesParser:
         return srs_ent, srs_rel, df_triples
 
     @staticmethod
-    def partition_data(df_triples: pd.DataFrame, generate_valid_test: bool = False, percentile_train: float = 0.8,
-                       balance_valid_test: float = 0.5) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    def partition_data(df_triples: Any, generate_valid_test: bool = False, percentile_train: float = 0.8,
+                       balance_valid_test: float = 0.5) -> Tuple[Any, Any, Any]:
         """
         Partitions triples dataframe to dataframes for training and (if specified) for validation and test
 
-        :param df_triples: DataFrame with the triples
+        :param DataFrame df_triples: DataFrame with the triples
         :param generate_valid_test: Flag indicating whether a validation and a test set should be created
         :param percentile_train:
         :param balance_valid_test:
@@ -218,11 +218,11 @@ class NTriplesParser:
         print("Done")
 
     @staticmethod
-    def save_triple2id(df_triples: pd.DataFrame, file_name: str = "triple2id.txt"):
+    def save_triple2id(df_triples: Any, file_name: str = "triple2id.txt"):
         """
         Saves triple data
 
-        :param df_triples: DataFrame with triples
+        :param DataFrame df_triples: DataFrame with triples
         :param file_name: Target file
         """
         sys.stdout.write("Saving Triples to %s ... " % file_name)

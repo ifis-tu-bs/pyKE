@@ -1,14 +1,15 @@
-.. pyKE documentation master file, created by
-   sphinx-quickstart on Thu Jul 12 10:37:45 2018.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
+pyKE
+====
 
-Welcome to pyKE's documentation!
-================================
+Welcome to pyKE's documentation. In this documentation you can find all information about the project.
 
 .. toctree::
    :maxdepth: 2
+   :numbered:
    :caption: Contents:
+
+   README
+   api/modules
 
 
 

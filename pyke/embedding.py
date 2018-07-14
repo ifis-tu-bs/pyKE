@@ -45,7 +45,7 @@ class Embedding:
     def get_model_parameters(self):
         """
         Returns the model-specific parameters used by the constructor. These are for example dimension, weight, margin.
-        The tuple can be unpacked with *args.
+        The tuple can be unpacked with *args*.
         Returning
 
         - (dimension, weight) for ComplEx and DistMult,

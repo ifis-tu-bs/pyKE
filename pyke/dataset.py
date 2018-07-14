@@ -63,14 +63,12 @@ class Dataset(object):
         This method is overloaded for the task of link prediction,
         awaiting an incomplete statement and returning all known substitutes.
 
-            Arguments
-        head - Index of a head entity.
-        tail - Index of a tail entity.
-        label - Index of a relation label.
+        :param head: Index of a head entity.
+        :param tail: Index of a tail entity.
+        :param relation: Index of a relation label.
 
-            Return Value
-        A boolean array, deciding for each candidate
-        whether or not the resulting statement is contained in the dataset.
+        :return: A boolean array, deciding for each candidate whether or not the resulting statement is
+            contained in the dataset.
         """
         if head is None:
             if tail is None:

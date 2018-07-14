@@ -35,7 +35,7 @@ class Library:
         """
         Loads the library from `path`.
 
-        :param path: path to the library (*.so)
+        :param path: path to the library (.so)
         """
         lib = cdll.LoadLibrary(path)
         lib.sampling.argtypes = [c_void_p, c_void_p, c_void_p, c_void_p, c_int64, c_int64, c_int64, c_int64]
