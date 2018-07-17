@@ -17,6 +17,13 @@ class TestNorm(TestCase):
         self.assertEqual(self.session.run(norm_x), 6)
         self.assertEqual(self.session.run(norm_y), 28.5)
 
+    def test_l1_multi(self):
+        x = tf.constant([[-1, 2, -3], [-7, 8, 9]])
+        norm_x = l1(x)
+        norm = self.session.run(norm_x)
+        self.assertEqual(norm[0], 6)
+        self.assertEqual(norm[1], 24)
+
     def test_l2(self):
         x = tf.constant([-1, 2, 3], tf.float64)
         y = tf.constant([-1, 2, 3, 8, 4.5, -10], tf.float64)

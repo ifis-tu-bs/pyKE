@@ -16,8 +16,8 @@ class TransE(BaseModel):
         return f"{type(self).__name__}-{self.dimension}"
 
     @staticmethod
-    def term(h, t, l):
-        return h - t + l
+    def _calc(h, t, l):
+        return abs(h - t + l)
 
     @staticmethod
     def lookup(h, t, l):
@@ -33,9 +33,18 @@ class TransE(BaseModel):
         rel = tf.get_variable('rel_embedding')
         return _at(ent, h), _at(ent, t), _at(rel, l)
 
-    def get_triple_score(self, h, t, l):
-        """The term to score triples."""
-        return self._norm(self.term(*self.lookup(h, t, l)))  # [.]
+    # def get_triple_score(self, h, t, l):
+    #     """
+    #     Calculates the score for a triple.
+    #
+    #     :param h: head ids
+    #     :param t: tail ids
+    #     :param l: label ids
+    #     :return: vector with size of head-vector with the norms
+    #     """
+    #     hv, tv, lv = self.lookup(h, t, l)  # head-vector, tail-vector, label-vector
+    #     result = self._calc(hv, tv, lv)  # result-vector
+    #     return self._norm(result)  # [n]
 
     def _embedding_def(self):
         """Initializes the variables of the model."""
@@ -48,17 +57,21 @@ class TransE(BaseModel):
 
     def _loss_def(self):
         """Initializes the loss function."""
+        pos_h, pos_t, pos_r = self.get_positive_instance(in_batch=True)
+        pos_h_v, pos_t_v, pos_r_v = self.lookup(pos_h, pos_t, pos_r)
+        _p_score = self._calc(pos_h_v, pos_t_v, pos_r_v)
+        p_score = tf.reduce_sum(tf.reduce_mean(_p_score, 1, keepdims=False), 1, keepdims=True)
 
-        def scores(h, t, l):
-            s = self.get_triple_score(h, t, l)  # [b,n]
-            return tf.reduce_mean(s, 1)  # [b]
+        neg_h, neg_t, neg_r = self.get_negative_instance(in_batch=True)
+        neg_h_v, neg_t_v, neg_r_v = self.lookup(neg_h, neg_t, neg_r)
+        _n_score = self._calc(neg_h_v, neg_t_v, neg_r_v)
+        n_score = tf.reduce_sum(tf.reduce_mean(_n_score, 1, keepdims=False), 1, keepdims=True)
 
-        p = scores(*self.get_positive_instance(in_batch=True))  # [b]
-        n = scores(*self.get_negative_instance(in_batch=True))  # [b]
-        loss = tf.reduce_sum(tf.maximum(p - n + self.margin, 0.0))  # []
+        loss = tf.reduce_sum(tf.maximum(p_score - n_score + self.margin, 0.0))
         return loss
 
     def _predict_def(self):
         """Initializes the prediction function."""
-
-        return self.get_triple_score(*self.get_predict_instance())  # [b]
+        pred_h, pred_t, pred_r = self.get_predict_instance()
+        pred_h_e, pred_t_e, pred_r_e = self.lookup(pred_h, pred_t, pred_r)
+        return tf.reduce_sum(self._calc(pred_h_e, pred_t_e, pred_r_e), 1)

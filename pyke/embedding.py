@@ -1,7 +1,9 @@
 import datetime as dt
 import os
+import sys
 
 import numpy as np
+import pandas as pd
 
 from pyke import utils, norm, models
 from pyke.dataset import Dataset
@@ -75,8 +77,6 @@ class Embedding:
     def variants(self):
         return self.neg_rel + self.neg_ent + 1
 
-    # TODO: Replace model constructor with self.model_class
-    # TODO: Modify models to accept kwargs in the constructor
     # TODO: Add cross validation
     def train(self, prefix='best', post_epoch=None, post_batch=None, autosave: float = 30, continue_training=True):
         """
@@ -102,7 +102,8 @@ class Embedding:
         m = self.model_class(*model_parameters, ent_count=self.dataset.ent_count, rel_count=self.dataset.rel_count,
                              batch_size=self.batch_size, variants=self.variants,
                              optimizer=self.optimizer, norm_func=self.norm_func,
-                             per_process_gpu_memory_fraction=self.per_process_gpu_memory_fraction)
+                             per_process_gpu_memory_fraction=self.per_process_gpu_memory_fraction,
+                             learning_rate=self.learning_rate)
 
         # Load existing model
         if os.path.exists(prefix + ".index") and continue_training:
@@ -145,3 +146,94 @@ class Embedding:
         :param path: JSON path
         """
         self.__model.save_to_json(path)
+
+    def meanrank(self, filtered=False, batch_count=None, head=True, tail=True, label=False, ):
+        """
+        Computes the mean rank of link prediction of one batch of the data.
+        Returns floating values between 0 and size-1
+        where lower results denote better models.
+        The return value consists of up to three values,
+        one for each of the columns 'head', 'tail' and 'label'.
+
+            Arguments
+        model - The to-be-tested embedding model.
+        folds - Amount of batches the data is separated.
+        index - Identifier of the tested batch.
+        head, tail, label - Truth values denoting
+        whether or not the respecting column should be tested.
+
+            Note
+        This test filters only 'false' facts evaluating better than the question.
+        See `openke.meanrank` for the unfiltered, or 'raw', version.
+        """
+        # TODO: Only use training triples, currently only raw version
+        if filtered:
+            raise NotImplementedError("Filtered meanrank not implemented")
+        if label:
+            raise NotImplementedError("Meanrank for label not implemented")
+
+        self.__library.randReset(self.workers, self.seed)
+        sampling_func = self.__library.bernSampling if self.bern else self.__library.sampling
+        types = (np.int64, np.int64, np.int64, np.float32)
+        batches = [np.zeros(self.batch_size, dtype=t) for t in types]
+        h_addr, t_addr, l_addr, y_addr = [utils.get_array_pointer(x) for x in batches]
+
+        ranks = []
+        folds = batch_count if batch_count else self.folds
+
+        last_percent = 0.0
+        limit = folds * self.batch_size
+        for _ in range(folds):
+            sampling_func(h_addr, t_addr, l_addr, y_addr, self.batch_size, 0, 0, self.workers)
+            for i in range(self.batch_size):
+                h_id, t_id, r_id = batches[0][i], batches[1][i], batches[2][i]
+
+                if head:
+                    predictions = self.__model.predict(None, t_id, r_id)
+                    df = pd.DataFrame(dict(
+                        h=np.arange(self.dataset.ent_count),
+                        t=np.full([self.dataset.ent_count], t_id),
+                        r=np.full([self.dataset.ent_count], r_id),
+                        y=predictions,
+                    ))
+                    df = df.sort_values("y")
+                    df = df.reset_index(drop=True)
+                    rank = df[df["h"] == h_id][df["t"] == t_id][df["r"] == r_id].index[0]
+                    ranks.append(rank)
+                if tail:
+                    predictions = self.__model.predict(h_id, None, r_id)
+                    df = pd.DataFrame(dict(
+                        h=np.full([self.dataset.ent_count], h_id),
+                        t=np.arange(self.dataset.ent_count),
+                        r=np.full([self.dataset.ent_count], r_id),
+                        y=predictions,
+                    ))
+                    df = df.sort_values("y")
+                    df = df.reset_index(drop=True)
+                    rank = df[df["h"] == h_id][df["t"] == t_id][df["r"] == r_id].index[0]
+                    ranks.append(rank)
+
+                percent = int((_ * self.batch_size + i) * 100.0 / limit)
+                if percent > last_percent:
+                    sys.stdout.write(f"\r{percent} %% (i={i}, bs={self.batch_size})")
+                    sys.stdout.flush()
+                    last_percent = percent
+
+        return np.array(ranks).mean()
+
+        # def rank(d, x, h, t, l):
+        #    y, z = self.query(h, t, l), model.predict(h, t, l)
+        #    return sum(1 for i in range(self.shape[d]) if z[i] < z[x] and not y[i])
+
+        # batch_size = self.batch_size
+        #
+        # # I = lambda: range(self.size // folds)
+        # for i, (h, t, l, _) in enumerate(self.batch(folds, **batchkwargs)):
+        #     if i == index:
+        #         break
+        # ranks = [
+        #     (rank(0, h[i], None, t[i], l[i]) for i in I()) if head else None,
+        #     (rank(0, t[i], h[i], None, l[i]) for i in I()) if tail else None,
+        #     (rank(1, l[i], h[i], t[i], None) for i in I()) if label else None]
+        #
+        # return [sum(i) / self.size for i in ranks if i is not None]

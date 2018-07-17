@@ -11,7 +11,7 @@ class BaseModel(object):
     """Properties and behaviour that different embedding models share."""
 
     def __init__(self, ent_count=None, rel_count=None, batch_size=0, variants=0, optimizer=None, norm_func=norm.l1,
-                 per_process_gpu_memory_fraction=0.5):
+                 per_process_gpu_memory_fraction=0.5, learning_rate=0.01):
         """
         Creates a new model.
 
@@ -49,8 +49,7 @@ class BaseModel(object):
         self.__parameters = dict()
 
         if optimizer is None:
-            # TODO: Add parameter for learning rate
-            optimizer = tf.train.GradientDescentOptimizer(.01)
+            optimizer = tf.train.GradientDescentOptimizer(learning_rate)
         self._norm = norm_func
 
         shape = self.batch_size * (self.neg_total + 1)
@@ -122,33 +121,36 @@ class BaseModel(object):
         _, loss = self.__session.run([self.__training, self.__loss], feed)
         return loss
 
-    def predict(self, head, tail, label):
+    def predict(self, head_id, tail_id, label_id):
         """Evaluates the model's scores on a batch of statements."""
         # transform wildcard parameters
         # require otherwise scalar parameters
-        if head is None:
-            if tail is None:
-                if label is None:
+        heads, tails, labels = [], [], []
+        if head_id is None:
+            if tail_id is None:
+                if label_id is None:
                     raise NotImplementedError('universal prediction')
                 raise NotImplementedError('full-relation prediction')
-            elif label is None:
+            elif label_id is None:
                 raise NotImplementedError('full-tail prediction')
-            head, tail, label = np.arange(self.ent_count), np.full([self.ent_count], tail), np.full([self.ent_count],
-                                                                                                    label)
-        elif tail is None:
-            if label is None:
+            heads, tails, labels = np.arange(self.ent_count), np.full([self.ent_count], tail_id), np.full(
+                [self.ent_count],
+                label_id)
+        elif tail_id is None:
+            if label_id is None:
                 raise NotImplementedError('full-head prediction')
-            head, tail, label = np.full([self.ent_count], head), np.arange(self.ent_count), np.full([self.ent_count],
-                                                                                                    label)
-        elif label is None:
-            head, tail, label = np.full([self.rel_count], head), np.full([self.rel_count], tail), np.arange(
+            heads, tails, labels = np.full([self.ent_count], head_id), np.arange(self.ent_count), np.full(
+                [self.ent_count],
+                label_id)
+        elif label_id is None:
+            heads, tails, labels = np.full([self.rel_count], head_id), np.full([self.rel_count], tail_id), np.arange(
                 self.rel_count)
 
         # perform prediction
         feed = {
-            self.predict_h: head,
-            self.predict_t: tail,
-            self.predict_l: label,
+            self.predict_h: heads,
+            self.predict_t: tails,
+            self.predict_l: labels,
         }
         return self.__session.run(self.__prediction, feed)
 
