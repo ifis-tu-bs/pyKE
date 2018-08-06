@@ -13,7 +13,17 @@ void bernSampling(uint64_t* h, uint64_t* t, uint64_t* r, float* y, uint64_t size
 extern "C"
 void sampling(uint64_t* h, uint64_t* t, uint64_t* r, float* y, uint64_t size, uint64_t ne, uint64_t nr, uint64_t workers);
 
-
+/**
+  id: worker id
+  h: head
+  t: tail
+  r: relation
+  y: score (-1/1)
+  size: batch size
+  ne: negative entities
+  nr: negative relations
+  workers: number of workers
+*/
 template <bool bernFlag>
 void getBatch(uint64_t id, uint64_t* h, uint64_t* t, uint64_t* r, float* y,
 		uint64_t size, uint64_t ne, uint64_t nr, uint64_t workers)

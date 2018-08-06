@@ -1,10 +1,13 @@
 # -*- coding: utf-8 -*-
 import json
+import logging
 
 import numpy as np
 import tensorflow as tf
 
 from pyke import norm
+
+logger = logging.getLogger("pyke")
 
 
 class BaseModel(object):
@@ -58,6 +61,7 @@ class BaseModel(object):
             gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=per_process_gpu_memory_fraction)
             self.__session = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
             with self.__session.as_default():
+                # TODO: Does it matter that TransX uses uniform=False?
                 initializer = tf.contrib.layers.xavier_initializer(uniform=True)
                 with tf.variable_scope('model', reuse=tf.AUTO_REUSE, initializer=initializer):
                     with tf.name_scope('input'):
@@ -93,6 +97,11 @@ class BaseModel(object):
                 self.__saver = tf.train.Saver()
                 self.__session.run(tf.global_variables_initializer())
 
+        logger.debug(f"batch_h shape: {self.batch_h.shape}")
+        logger.debug(f"postive_h shape: {self.postive_h.shape}")
+        logger.debug(f"negative_h shape: {self.negative_h.shape}")
+        logger.debug(f"all_h shape: {self.all_h.shape}")
+
     def __iter__(self):
         """Iterates all parameter fields of the model."""
         return iter(self.__parameters)
@@ -125,7 +134,7 @@ class BaseModel(object):
         """Evaluates the model's scores on a batch of statements."""
         # transform wildcard parameters
         # require otherwise scalar parameters
-        heads, tails, labels = [], [], []
+        heads, tails, labels = [head_id], [tail_id], [label_id]
         if head_id is None:
             if tail_id is None:
                 if label_id is None:

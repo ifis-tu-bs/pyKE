@@ -1,4 +1,5 @@
 import datetime as dt
+import logging
 import os
 import sys
 
@@ -8,6 +9,9 @@ import pandas as pd
 from pyke import utils, norm, models
 from pyke.dataset import Dataset
 from pyke.library import Library
+
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(module)s - %(message)s')
+logger = logging.getLogger("pyke")
 
 
 class Embedding:
@@ -76,6 +80,13 @@ class Embedding:
     @property
     def variants(self):
         return self.neg_rel + self.neg_ent + 1
+
+    def predict_single(self, head_id, tail_id, rel_id):
+        return self.__model.predict(head_id, tail_id, rel_id)
+
+    def predict_multiple(self, head_ids, tail_ids, rel_ids):
+        triples = zip(head_ids, tail_ids, rel_ids)
+        return [self.predict_single(triple[0], triple[1], triple[2]) for triple in triples]
 
     # TODO: Add cross validation
     def train(self, prefix='best', post_epoch=None, post_batch=None, autosave: float = 30, continue_training=True):
@@ -147,6 +158,19 @@ class Embedding:
         """
         self.__model.save_to_json(path)
 
+    def restore(self, prefix: str):
+        # Create model
+        model_parameters = self.get_model_parameters()
+        self.__model = self.model_class(
+            *model_parameters, ent_count=self.dataset.ent_count,
+            rel_count=self.dataset.rel_count,
+            batch_size=self.batch_size, variants=self.variants,
+            optimizer=self.optimizer, norm_func=self.norm_func,
+            per_process_gpu_memory_fraction=self.per_process_gpu_memory_fraction,
+            learning_rate=self.learning_rate,
+        )
+        self.__model.restore(prefix)
+
     def meanrank(self, filtered=False, batch_count=None, head=True, tail=True, label=False, ):
         """
         Computes the mean rank of link prediction of one batch of the data.
@@ -183,6 +207,7 @@ class Embedding:
 
         last_percent = 0.0
         limit = folds * self.batch_size
+        print("Calculating mean rank ...")
         for _ in range(folds):
             sampling_func(h_addr, t_addr, l_addr, y_addr, self.batch_size, 0, 0, self.workers)
             for i in range(self.batch_size):
@@ -215,25 +240,9 @@ class Embedding:
 
                 percent = int((_ * self.batch_size + i) * 100.0 / limit)
                 if percent > last_percent:
-                    sys.stdout.write(f"\r{percent} %% (i={i}, bs={self.batch_size})")
+                    sys.stdout.write(f"\r{percent}% (i={i}, bs={self.batch_size}) ...")
                     sys.stdout.flush()
                     last_percent = percent
 
+        sys.stdout.write(" done\n")
         return np.array(ranks).mean()
-
-        # def rank(d, x, h, t, l):
-        #    y, z = self.query(h, t, l), model.predict(h, t, l)
-        #    return sum(1 for i in range(self.shape[d]) if z[i] < z[x] and not y[i])
-
-        # batch_size = self.batch_size
-        #
-        # # I = lambda: range(self.size // folds)
-        # for i, (h, t, l, _) in enumerate(self.batch(folds, **batchkwargs)):
-        #     if i == index:
-        #         break
-        # ranks = [
-        #     (rank(0, h[i], None, t[i], l[i]) for i in I()) if head else None,
-        #     (rank(0, t[i], h[i], None, l[i]) for i in I()) if tail else None,
-        #     (rank(1, l[i], h[i], t[i], None) for i in I()) if label else None]
-        #
-        # return [sum(i) / self.size for i in ranks if i is not None]
