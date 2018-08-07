@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 import hashlib
 
+import numpy as np
+
 
 def split_nt_line(line: str):
     """
@@ -40,3 +42,15 @@ def get_array_pointer(a):
     :return: Memory address of the array
     """
     return a.__array_interface__['data'][0]
+
+
+def get_rank(predictions: np.array, value: float):
+    """
+    Helper function. Returns the index of value in predictions, if predictions were sorted ascending.
+
+    :param predictions: list of prediction values
+    :param value: value to look for
+    :return: index of the value (i.e. number of predictions smaller than value)
+    """
+    smaller_predictions = np.where(predictions < value)
+    return len(smaller_predictions[0])

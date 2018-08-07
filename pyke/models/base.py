@@ -51,8 +51,10 @@ class BaseModel(object):
 
         self.__parameters = dict()
 
-        if optimizer is None:
-            optimizer = tf.train.GradientDescentOptimizer(learning_rate)
+        if optimizer is None or optimizer == "SGD":
+            self.optimizer = tf.train.GradientDescentOptimizer(learning_rate)
+        else:
+            raise NotImplementedError
         self._norm = norm_func
 
         shape = self.batch_size * (self.neg_total + 1)
@@ -92,8 +94,8 @@ class BaseModel(object):
                         self.__loss = self._loss_def()
                     with tf.name_scope('predict'):
                         self.__prediction = self._predict_def()
-                    grads_and_vars = optimizer.compute_gradients(self.__loss)
-                    self.__training = optimizer.apply_gradients(grads_and_vars)
+                    grads_and_vars = self.optimizer.compute_gradients(self.__loss)
+                    self.__training = self.optimizer.apply_gradients(grads_and_vars)
                 self.__saver = tf.train.Saver()
                 self.__session.run(tf.global_variables_initializer())
 

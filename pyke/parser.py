@@ -43,6 +43,11 @@ class NTriplesParser:
         self.ent_count = None
         self.rel_count = None
         self.train_count = None
+        self.valid_count = None
+        self.test_count = None
+        # self.df_train = None
+        # self.df_test = None
+        # self.df_valid = None
 
     def parse(self):
         """
@@ -50,7 +55,9 @@ class NTriplesParser:
         fingerprint) and loads this benchmark. Otherwise it creates a new benchmark.
         :return:
         """
-        if os.path.exists(self.entity_file) and os.path.exists(self.relation_file) and os.path.exists(self.train_file):
+        if os.path.exists(self.entity_file) and os.path.exists(self.relation_file) and os.path.exists(
+                self.train_file) and (
+                not self.generate_valid_test or (os.path.exists(self.valid_file) and os.path.exists(self.test_file))):
             print(f"Benchmark found: {self.output_dir}")
             with open(self.entity_file) as f:
                 self.ent_count = int(f.readline())
@@ -58,6 +65,11 @@ class NTriplesParser:
                 self.rel_count = int(f.readline())
             with open(self.train_file) as f:
                 self.train_count = int(f.readline())
+            if self.generate_valid_test:
+                with open(self.valid_file) as f:
+                    self.valid_count = int(f.readline())
+                with open(self.test_file) as f:
+                    self.test_count = int(f.readline())
         else:
             self.create_benchmark()
 
@@ -267,3 +279,8 @@ class NTriplesParser:
         self.ent_count = len(srs_ent)
         self.rel_count = len(srs_rel)
         self.train_count = len(df_train)
+        self.test_count = len(df_test)
+        self.valid_count = len(df_valid)
+        # self.df_train = df_train
+        # self.df_valid = df_valid
+        # self.df_test = df_test

@@ -63,13 +63,18 @@ class TransE(BaseModel):
         pos_h, pos_t, pos_r = self.get_positive_instance(in_batch=True)  # shape (b,1)
         pos_h_v, pos_t_v, pos_r_v = self.lookup(pos_h, pos_t, pos_r)  # shape (b,1,dim)
         _p_score = self._calc(pos_h_v, pos_t_v, pos_r_v)  # shape (b,1,dim)
-        p_score = tf.reduce_sum(_p_score, -1, keepdims=True)  # shape (b,1,1); L1 norm
+        p_score = tf.reduce_sum(
+            tf.reduce_mean(_p_score, 1, keepdims=False),
+            -1,
+            keepdims=True,
+        )  # shape (b,1); L1 norm
 
         neg_h, neg_t, neg_r = self.get_negative_instance(in_batch=True)  # shape (b,neg)
         neg_h_v, neg_t_v, neg_r_v = self.lookup(neg_h, neg_t, neg_r)  # shape (b,neg,dim)
         _n_score = self._calc(neg_h_v, neg_t_v, neg_r_v)  # shape (b,neg,dim)
-        n_score_sum = tf.reduce_sum(_n_score, -1, keepdims=True)  # shape (b,neg,1)
-        n_score = tf.reduce_mean(n_score_sum, 1, keepdims=True)  # shape (b,1,1)
+        # n_score_sum = tf.reduce_sum(_n_score, -1, keepdims=True)  # shape (b,neg,1)
+        n_score_mean = tf.reduce_mean(_n_score, 1, keepdims=False)  # shape (b,1)
+        n_score = tf.reduce_sum(n_score_mean, 1, keepdims=True)  # shape (b,1)
 
         logger.debug(f"LOSS function pos_h shape {pos_h.shape}")
         logger.debug(f"LOSS function pos_h_v shape {pos_h_v.shape}")
@@ -78,7 +83,7 @@ class TransE(BaseModel):
         logger.debug(f"LOSS function neg_h shape {neg_h.shape}")
         logger.debug(f"LOSS function neg_h_v shape {neg_h_v.shape}")
         logger.debug(f"LOSS function _n_score shape {_n_score.shape}")
-        logger.debug(f"LOSS function n_score_sum shape {n_score_sum.shape}")
+        logger.debug(f"LOSS function n_score_mean shape {n_score_mean.shape}")
         logger.debug(f"LOSS function n_score shape {n_score.shape}")
 
         loss = tf.reduce_sum(tf.maximum(p_score - n_score + self.margin, 0.0))

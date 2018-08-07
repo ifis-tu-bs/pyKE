@@ -19,7 +19,7 @@ class Dataset(object):
     describing an index in an ordered table.
     """
 
-    def __init__(self, filename: str, temp_dir: str = ".pyke"):
+    def __init__(self, filename: str, temp_dir: str = ".pyke", generate_valid_test: bool = False):
         """
         Creates a new dataset from a N-triples file.
 
@@ -40,7 +40,7 @@ class Dataset(object):
         """
         self.__library = Library.get_library(temp_dir)
 
-        parser = NTriplesParser(filename, temp_dir)
+        parser = NTriplesParser(filename, temp_dir, generate_valid_test)
         parser.parse()
 
         self.__library.importTrainFiles(
@@ -48,10 +48,17 @@ class Dataset(object):
             parser.ent_count,
             parser.rel_count,
         )
+        self.generate_valid_test  =generate_valid_test
         self.size = parser.train_count
         self.ent_count = parser.ent_count
         self.rel_count = parser.rel_count
         self.shape = self.ent_count, self.rel_count
+        # self.df_train = parser.df_train
+        # self.df_test = parser.df_test
+        # self.df_valid = parser.df_valid
+        self.train_set = self.read_benchmark(parser.train_file)
+        self.test_set = self.read_benchmark(parser.test_file) if generate_valid_test else []
+        self.valid_set = self.read_benchmark(parser.valid_file) if generate_valid_test else []
 
     def __len__(self):
         """Returns the size of the dataset."""
@@ -91,3 +98,10 @@ class Dataset(object):
             self.__library.query_rel(head, tail, get_array_pointer(relations))
             return relations
         raise NotImplementedError('querying single facts')
+
+    @staticmethod
+    def read_benchmark(filename):
+        with open(filename) as f:
+            f.readline()  # Skip first line containing the number of rows
+            triple_list = [(int(line.split()[0]), int(line.split()[1]), int(line.split()[2])) for line in f]
+        return triple_list
