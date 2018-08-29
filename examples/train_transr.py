@@ -20,7 +20,7 @@ embedding = Embedding(
 
 # Train the model. It is saved in the process.
 # TODO: Currently not working
-embedding.train(prefix="./TransR", post_epoch=print)
+embedding.train(prefix="./TransR")
 
 # Save the embedding to a JSON file
 embedding.save_to_json("TransR.json")

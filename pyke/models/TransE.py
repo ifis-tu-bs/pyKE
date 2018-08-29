@@ -1,105 +1,55 @@
 # coding:utf-8
-import logging
-
 import tensorflow as tf
 
-from pyke.models import BaseModel
-
-_at = tf.nn.embedding_lookup
-logger = logging.getLogger("pyke")
+from .Model import Model
 
 
-class TransE(BaseModel):
-    def __init__(self, dimension, margin, **kwargs):
-        self.dimension = dimension
-        self.margin = margin
-        super().__init__(**kwargs)
+class TransE(Model):
 
-    def __str__(self):
-        return f"{type(self).__name__}-{self.dimension}"
+    def _calc(self, h, t, r):
+        return abs(h + r - t)
 
-    @staticmethod
-    def _calc(h, t, l):
-        return abs(h + l - t)
+    def embedding_def(self):
+        # Obtaining the initial configuration of the model
+        config = self.get_config()
+        # Defining required parameters of the model, including embeddings of entities and relations
+        self.ent_embeddings = tf.get_variable(name="ent_embeddings", shape=[config.entTotal, config.hidden_size],
+                                              initializer=tf.contrib.layers.xavier_initializer(uniform=False))
+        self.rel_embeddings = tf.get_variable(name="rel_embeddings", shape=[config.relTotal, config.hidden_size],
+                                              initializer=tf.contrib.layers.xavier_initializer(uniform=False))
+        self.parameter_lists = {"ent_embeddings": self.ent_embeddings, \
+                                "rel_embeddings": self.rel_embeddings}
 
-    @staticmethod
-    def lookup(h, t, l):
-        """
-        Returns the vectors for the head, tail and label.
+    def loss_def(self):
+        # Obtaining the initial configuration of the model
+        config = self.get_config()
+        # To get positive triples and negative triples for training
+        # The shapes of pos_h, pos_t, pos_r are (batch_size, 1)
+        # The shapes of neg_h, neg_t, neg_r are (batch_size, negative_ent + negative_rel)
+        pos_h, pos_t, pos_r = self.get_positive_instance(in_batch=True)
+        neg_h, neg_t, neg_r = self.get_negative_instance(in_batch=True)
+        # Embedding entities and relations of triples, e.g. p_h, p_t and p_r are embeddings for positive triples
+        p_h = tf.nn.embedding_lookup(self.ent_embeddings, pos_h)
+        p_t = tf.nn.embedding_lookup(self.ent_embeddings, pos_t)
+        p_r = tf.nn.embedding_lookup(self.rel_embeddings, pos_r)
+        n_h = tf.nn.embedding_lookup(self.ent_embeddings, neg_h)
+        n_t = tf.nn.embedding_lookup(self.ent_embeddings, neg_t)
+        n_r = tf.nn.embedding_lookup(self.rel_embeddings, neg_r)
+        # Calculating score functions for all positive triples and negative triples
+        # The shape of _p_score is (batch_size, 1, hidden_size)
+        # The shape of _n_score is (batch_size, negative_ent + negative_rel, hidden_size)
+        _p_score = self._calc(p_h, p_t, p_r)
+        _n_score = self._calc(n_h, n_t, n_r)
+        # The shape of p_score is (batch_size, 1)
+        # The shape of n_score is (batch_size, 1)
+        p_score = tf.reduce_sum(tf.reduce_mean(_p_score, 1, keep_dims=False), 1, keep_dims=True)
+        n_score = tf.reduce_sum(tf.reduce_mean(_n_score, 1, keep_dims=False), 1, keep_dims=True)
+        # Calculating loss to get what the framework will optimize
+        self.loss = tf.reduce_sum(tf.maximum(p_score - n_score + config.margin, 0))
 
-        :param h: head id(s)
-        :param t: tail id(s)
-        :param l: label id(s)
-        :return: head, tail and label vectors
-        """
-        ent = tf.get_variable('ent_embeddings')
-        rel = tf.get_variable('rel_embeddings')
-        return _at(ent, h), _at(ent, t), _at(rel, l)
-
-    # def get_triple_score(self, h, t, l):
-    #     """
-    #     Calculates the score for a triple.
-    #
-    #     :param h: head ids
-    #     :param t: tail ids
-    #     :param l: label ids
-    #     :return: vector with size of head-vector with the norms
-    #     """
-    #     hv, tv, lv = self.lookup(h, t, l)  # head-vector, tail-vector, label-vector
-    #     result = self._calc(hv, tv, lv)  # result-vector
-    #     return self._norm(result)  # [n]
-
-    def _embedding_def(self):
-        """Initializes the variables of the model."""
-        ent = tf.get_variable('ent_embeddings', [self.ent_count, self.dimension])
-        rel = tf.get_variable('rel_embeddings', [self.rel_count, self.dimension])
-        yield 'ent_embeddings', ent
-        yield 'rel_embeddings', rel
-        self._entity = _at(ent, self.predict_h)
-        self._relation = _at(rel, self.predict_l)
-
-    def _loss_def(self):
-        """Initializes the loss function."""
-        pos_h, pos_t, pos_r = self.get_positive_instance(in_batch=True)  # shape (b,1)
-        pos_h_v, pos_t_v, pos_r_v = self.lookup(pos_h, pos_t, pos_r)  # shape (b,1,dim)
-        _p_score = self._calc(pos_h_v, pos_t_v, pos_r_v)  # shape (b,1,dim)
-        p_score = tf.reduce_sum(
-            tf.reduce_mean(_p_score, 1, keepdims=False),
-            -1,
-            keepdims=True,
-        )  # shape (b,1); L1 norm
-
-        neg_h, neg_t, neg_r = self.get_negative_instance(in_batch=True)  # shape (b,neg)
-        neg_h_v, neg_t_v, neg_r_v = self.lookup(neg_h, neg_t, neg_r)  # shape (b,neg,dim)
-        _n_score = self._calc(neg_h_v, neg_t_v, neg_r_v)  # shape (b,neg,dim)
-        # n_score_sum = tf.reduce_sum(_n_score, -1, keepdims=True)  # shape (b,neg,1)
-        n_score_mean = tf.reduce_mean(_n_score, 1, keepdims=False)  # shape (b,1)
-        n_score = tf.reduce_sum(n_score_mean, 1, keepdims=True)  # shape (b,1)
-
-        logger.debug(f"LOSS function pos_h shape {pos_h.shape}")
-        logger.debug(f"LOSS function pos_h_v shape {pos_h_v.shape}")
-        logger.debug(f"LOSS function _p_score shape {_p_score.shape}")
-        logger.debug(f"LOSS function p_score shape {p_score.shape}")
-        logger.debug(f"LOSS function neg_h shape {neg_h.shape}")
-        logger.debug(f"LOSS function neg_h_v shape {neg_h_v.shape}")
-        logger.debug(f"LOSS function _n_score shape {_n_score.shape}")
-        logger.debug(f"LOSS function n_score_mean shape {n_score_mean.shape}")
-        logger.debug(f"LOSS function n_score shape {n_score.shape}")
-
-        loss = tf.reduce_sum(tf.maximum(p_score - n_score + self.margin, 0.0))
-        return loss
-
-    def _predict_def(self):
-        """Initializes the prediction function."""
-        pred_h, pred_t, pred_r = self.get_predict_instance()
-        pred_h_e, pred_t_e, pred_r_e = self.lookup(pred_h, pred_t, pred_r)
-        _pred_score = self._calc(pred_h_e, pred_t_e, pred_r_e)
-        # pred_score = tf.reduce_sum(_pred_score, 1, keepdims=False)
-        pred_score = tf.reduce_mean(_pred_score, 1, keepdims=False)  # Divides by dimension
-
-        logger.debug(f"PREDICT function pred_h shape {pred_h.shape}")
-        logger.debug(f"PREDICT function pred_h_e shape {pred_h_e.shape}")
-        logger.debug(f"PREDICT function _pred_score shape {_pred_score.shape}")
-        logger.debug(f"PREDICT function pred_score shape {pred_score.shape}")
-
-        return pred_score
+    def predict_def(self):
+        predict_h, predict_t, predict_r = self.get_predict_instance()
+        predict_h_e = tf.nn.embedding_lookup(self.ent_embeddings, predict_h)
+        predict_t_e = tf.nn.embedding_lookup(self.ent_embeddings, predict_t)
+        predict_r_e = tf.nn.embedding_lookup(self.rel_embeddings, predict_r)
+        self.predict = tf.reduce_mean(self._calc(predict_h_e, predict_t_e, predict_r_e), 1, keep_dims=False)

@@ -38,13 +38,15 @@ class Library:
         :param path: path to the library (.so)
         """
         lib = cdll.LoadLibrary(path)
-        lib.sampling.argtypes = [c_void_p, c_void_p, c_void_p, c_void_p, c_int64, c_int64, c_int64, c_int64]
-        lib.bernSampling.argtypes = lib.sampling.argtypes
-        lib.query_head.argtypes = [c_void_p, c_int64, c_int64]
-        lib.query_tail.argtypes = [c_int64, c_void_p, c_int64]
-        lib.query_rel.argtypes = [c_int64, c_int64, c_void_p]
-        lib.importTrainFiles.argtypes = [c_void_p, c_int64, c_int64]
-        lib.randReset.argtypes = [c_int64, c_int64]
+        lib.sampling.argtypes = [c_void_p, c_void_p, c_void_p, c_void_p,c_int64, c_int64, c_int64]
+        lib.getHeadBatch.argtypes = [c_void_p, c_void_p, c_void_p]
+        lib.getTailBatch.argtypes = [c_void_p, c_void_p, c_void_p]
+        lib.testHead.argtypes = [c_void_p]
+        lib.testTail.argtypes = [c_void_p]
+        lib.getTestBatch.argtypes = [c_void_p, c_void_p, c_void_p, c_void_p,c_void_p, c_void_p]
+        lib.getValidBatch.argtypes = [c_void_p, c_void_p, c_void_p, c_void_p, c_void_p, c_void_p]
+        lib.getBestThreshold.argtypes = [c_void_p, c_void_p, c_void_p]
+        lib.test_triple_classification.argtypes = [c_void_p, c_void_p, c_void_p]
         Library.library = lib
 
     @staticmethod

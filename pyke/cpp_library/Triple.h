@@ -1,41 +1,36 @@
 #ifndef TRIPLE_H
-#	define TRIPLE_H
-#	include <algorithm> // std::min
-#	include <cstdint> // int64_t
+#define TRIPLE_H
+#include "Setting.h"
 
+struct Triple {
 
-struct Triple
-{
-	int64_t h;
-	int64_t t;
-	int64_t r;
+	INT h, r, t;
 
-	static bool cmp_hrt(const Triple& a, const Triple& b) {
-		return (a.h < b.h) or (a.h == b.h and a.r < b.r) or (a.h == b.h and a.r == b.r and a.t < b.t);
+	static INT minimal(INT a,INT b) {
+		if (a > b) return b;
+		return a;
+	}
+	
+	static bool cmp_list(const Triple &a, const Triple &b) {
+		return (minimal(a.h, a.t) > minimal(b.h, b.t));
 	}
 
-	static bool cmp_trh(const Triple& a, const Triple& b) {
-		return (a.t < b.t) or (a.t == b.t and a.r < b.r) or (a.t == b.t and a.r == b.r and a.h < b.h);
+	static bool cmp_head(const Triple &a, const Triple &b) {
+		return (a.h < b.h)||(a.h == b.h && a.r < b.r)||(a.h == b.h && a.r == b.r && a.t < b.t);
 	}
 
-	static bool cmp_htr(const Triple& a, const Triple& b) {
-		return (a.h < b.h) or (a.h == b.h and a.t < b.t) or (a.h == b.h and a.t == b.t and a.r < b.r);
+	static bool cmp_tail(const Triple &a, const Triple &b) {
+		return (a.t < b.t)||(a.t == b.t && a.r < b.r)||(a.t == b.t && a.r == b.r && a.h < b.h);
 	}
 
-	static bool cmp_h(const Triple& a, const Triple& b) {
-		return (a.h < b.h);
+	static bool cmp_rel(const Triple &a, const Triple &b) {
+		return (a.h < b.h)||(a.h == b.h && a.t < b.t)||(a.h == b.h && a.t == b.t && a.r < b.r);
 	}
 
-	static bool cmp_t(const Triple& a, const Triple& b) {
-		return (a.t < b.t);
+	static bool cmp_rel2(const Triple &a, const Triple &b) {
+		return (a.r < b.r)||(a.r == b.r && a.h < b.h)||(a.r == b.r && a.h == b.h && a.t < b.t);
 	}
 
-	static bool cmp_r(const Triple& a, const Triple& b) {
-		return (a.r < b.r);
-	}
-
-	Triple(const int64_t& head, const int64_t& tail, const int64_t& rel): h{head}, t{tail}, r{rel} {}
-
-	Triple(void): Triple(0, 0, 0) {}
 };
-#endif // TRIPLE_H
+
+#endif

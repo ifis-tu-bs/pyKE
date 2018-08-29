@@ -18,7 +18,7 @@ embedding = Embedding(
 )
 
 # Train the model. It is saved in the process.
-embedding.train(prefix="./HolE", post_epoch=print)
+embedding.train(prefix="./HolE")
 
 # Save the embedding to a JSON file
 embedding.save_to_json("HolE.json")

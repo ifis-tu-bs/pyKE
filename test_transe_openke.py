@@ -13,13 +13,11 @@ embedding = Embedding(
     neg_rel=0,
     bern=False,
     workers=8,
-    dimension=50,
+    dimension=100,
     margin=1.0,
-    learning_rate=0.01,
+    learning_rate=0.001,
 )
 
-# Train the model. It is saved in the process.
-embedding.train(prefix="./TransEPaper")
+embedding.restore("./TransEOpenKE")
 
-# Save the embedding to a JSON file
-embedding.save_to_json("TransEPaper.json")
+print(embedding.meanrank())

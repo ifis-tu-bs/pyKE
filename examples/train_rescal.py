@@ -18,8 +18,7 @@ embedding = Embedding(
 )
 
 # Train the model. It is saved in the process.
-# TODO: Currently not working
-embedding.train(prefix="./RESCAL", post_epoch=print)
+embedding.train(prefix="./RESCAL")
 
 # Save the embedding to a JSON file
 embedding.save_to_json("RESCAL.json")

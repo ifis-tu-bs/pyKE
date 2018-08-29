@@ -1,39 +1,31 @@
 #ifndef RANDOM_H
 #define RANDOM_H
 #include "Setting.h"
-#include <vector> // std::vector
+#include <cstdlib>
 
-
-std::vector<uint64_t> next_random;
-
+unsigned long long *next_random;
 
 extern "C"
-void randReset(uint64_t workers, uint64_t seed)
-{
-	next_random.resize(workers);
-	for (auto& i: next_random)
-		i = seed;
+void randReset() {
+	next_random = (unsigned long long *)calloc(workThreads, sizeof(unsigned long long));
+	for (INT i = 0; i < workThreads; i++)
+		next_random[i] = rand();
 }
 
-
-uint64_t randd(uint64_t id)
-{
-	auto& r = next_random.at(id);
-	r *= (uint64_t)25214903917;
-	r += 11;
-	return r;
+unsigned long long randd(INT id) {
+	next_random[id] = next_random[id] * (unsigned long long)25214903917 + 11;
+	return next_random[id];
 }
 
-
-uint64_t rand_max(uint64_t id, uint64_t x)
-{
-	uint64_t res = randd(id) % x;
-	/* warning: comparision of unsigned expression is always false
+INT rand_max(INT id, INT x) {
+	INT res = randd(id) % x;
 	while (res < 0)
 		res += x;
-    */
 	return res;
 }
 
-
-#endif // RANDOM_H
+//[a,b)
+INT rand(INT a, INT b){
+	return (rand() % (b-a))+ a;
+}
+#endif

@@ -1,57 +1,58 @@
 # coding:utf-8
 import tensorflow as tf
 
-from pyke.models import BaseModel
-
-_at = tf.nn.embedding_lookup
+from .Model import Model
 
 
-def _lookup(h, t, l):
-    ent = tf.get_variable('ent_embeddings')
-    rel = tf.get_variable('rel_matrices')
-    return _at(ent, h), _at(ent, t), _at(rel, l)
+class RESCAL(Model):
 
+    def _calc(self, h, t, r):
+        return h * tf.matmul(r, t)
 
-def _term(h, t, m):
-    # TODO: Replace matmul with PEP465 @-operator when upgrading to Python 3.5
-    return tf.squeeze(h * tf.matmul(m, t), [-1])
+    def embedding_def(self):
+        # Obtaining the initial configuration of the model
+        config = self.get_config()
+        # Defining required parameters of the model, including embeddings of entities and relations
+        self.ent_embeddings = tf.get_variable(name="ent_embeddings", shape=[config.entTotal, config.hidden_size],
+                                              initializer=tf.contrib.layers.xavier_initializer(uniform=False))
+        self.rel_matrices = tf.get_variable(name="rel_matrices",
+                                            shape=[config.relTotal, config.hidden_size * config.hidden_size],
+                                            initializer=tf.contrib.layers.xavier_initializer(uniform=False))
+        self.parameter_lists = {"ent_embeddings": self.ent_embeddings, \
+                                "rel_matrices": self.rel_matrices}
 
+    def loss_def(self):
+        # Obtaining the initial configuration of the model
+        config = self.get_config()
+        # To get positive triples and negative triples for training
+        # The shapes of pos_h, pos_t, pos_r are (batch_size, 1)
+        # The shapes of neg_h, neg_t, neg_r are (batch_size, negative_ent + negative_rel)
+        pos_h, pos_t, pos_r = self.get_positive_instance(in_batch=True)
+        neg_h, neg_t, neg_r = self.get_negative_instance(in_batch=True)
+        # Embedding entities and relations of triples, e.g. p_h, p_t and p_r are embeddings for positive triples
+        p_h = tf.reshape(tf.nn.embedding_lookup(self.ent_embeddings, pos_h), [-1, config.hidden_size, 1])
+        p_t = tf.reshape(tf.nn.embedding_lookup(self.ent_embeddings, pos_t), [-1, config.hidden_size, 1])
+        p_r = tf.reshape(tf.nn.embedding_lookup(self.rel_matrices, pos_r), [-1, config.hidden_size, config.hidden_size])
+        n_h = tf.reshape(tf.nn.embedding_lookup(self.ent_embeddings, neg_h), [-1, config.hidden_size, 1])
+        n_t = tf.reshape(tf.nn.embedding_lookup(self.ent_embeddings, neg_t), [-1, config.hidden_size, 1])
+        n_r = tf.reshape(tf.nn.embedding_lookup(self.rel_matrices, neg_r), [-1, config.hidden_size, config.hidden_size])
+        # The shape of _p_score is (batch_size, 1, hidden_size)
+        # The shape of _n_score is (batch_size, negative_ent + negative_rel, hidden_size)
+        _p_score = tf.reshape(self._calc(p_h, p_t, p_r), [-1, 1, config.hidden_size])
+        _n_score = tf.reshape(self._calc(n_h, n_t, n_r),
+                              [-1, config.negative_ent + config.negative_rel, config.hidden_size])
+        # The shape of p_score is (batch_size, 1)
+        # The shape of n_score is (batch_size, 1)
+        p_score = tf.reduce_sum(tf.reduce_mean(_p_score, 1, keep_dims=False), 1, keep_dims=True)
+        n_score = tf.reduce_sum(tf.reduce_mean(_n_score, 1, keep_dims=False), 1, keep_dims=True)
+        # Calculating loss to get what the framework will optimize
+        self.loss = tf.reduce_sum(tf.maximum(n_score - p_score + config.margin, 0))
 
-class RESCAL(BaseModel):
-    # FIXME: RESCAL loss doesn't decrease
-    def __init__(self, dimension, margin, **kwargs):
-        self.dimension = dimension
-        self.margin = margin
-        super().__init__(**kwargs)
-
-    def __str__(self):
-        return '{}-{}'.format(type(self).__name__, self.dimension)
-
-    def _score(self, h, t, l):
-        """The term to score triples."""
-        # TODO: Check whether the norm should appear here
-        return self._norm(_term(*_lookup(h, t, l)))  # [.]
-
-    def _embedding_def(self):
-        """Initializes the variables of the model."""
-        ent = tf.get_variable('ent_embeddings', [self.ent_count, self.dimension, 1])
-        rel = tf.get_variable('rel_matrices', [self.rel_count, self.dimension, self.dimension])
-        yield 'ent_embeddings', ent
-        yield 'rel_matrices', rel
-        self._entity = tf.squeeze(_at(ent, self.predict_h), [-1])
-
-    def _loss_def(self):
-        """Initializes the loss function."""
-
-        def scores(h, t, l):
-            s = self._score(h, t, l)  # [b,n]
-            return tf.reduce_mean(s, 1)  # [b]
-
-        p = scores(*self.get_positive_instance(in_batch=True))  # [b]
-        n = scores(*self.get_negative_instance(in_batch=True))  # [b]
-
-        return tf.reduce_sum(tf.maximum(p - n + self.margin, 0))  # []
-
-    def _predict_def(self):
-        """Initializes the prediction function."""
-        return self._score(*self.get_predict_instance())  # [b]
+    def predict_def(self):
+        config = self.get_config()
+        predict_h, predict_t, predict_r = self.get_predict_instance()
+        predict_h_e = tf.reshape(tf.nn.embedding_lookup(self.ent_embeddings, predict_h), [-1, config.hidden_size, 1])
+        predict_t_e = tf.reshape(tf.nn.embedding_lookup(self.ent_embeddings, predict_t), [-1, config.hidden_size, 1])
+        predict_r_e = tf.reshape(tf.nn.embedding_lookup(self.rel_matrices, predict_r),
+                                 [-1, config.hidden_size, config.hidden_size])
+        self.predict = -tf.reduce_sum(self._calc(predict_h_e, predict_t_e, predict_r_e), 1, keep_dims=False)

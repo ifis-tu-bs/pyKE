@@ -19,7 +19,7 @@ embedding = Embedding(
 )
 
 # Train the model. It is saved in the process.
-embedding.train(prefix="./TransEOpenKE", post_epoch=print)
+embedding.train(prefix="./TransEOpenKE")
 
 # Save the embedding to a JSON file
 embedding.save_to_json("TransEOpenKE.json")

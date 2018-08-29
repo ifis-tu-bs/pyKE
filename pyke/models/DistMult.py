@@ -1,60 +1,46 @@
 # coding:utf-8
 import tensorflow as tf
 
-from pyke.models import BaseModel
-
-_at = tf.nn.embedding_lookup
-_softplus = tf.nn.softplus
+from .Model import Model
 
 
-def _lookup(h, t, l):
-    ent = tf.get_variable('ent_embeddings')
-    rel = tf.get_variable('rel_embeddings')
+class DistMult(Model):
 
-    return _at(ent, h), _at(ent, t), _at(rel, l)  # [.,d]
+    def _calc(self, h, t, r):
+        return h * r * t
 
+    def embedding_def(self):
+        config = self.get_config()
+        self.ent_embeddings = tf.get_variable(name="ent_embeddings", shape=[config.entTotal, config.hidden_size],
+                                              initializer=tf.contrib.layers.xavier_initializer(uniform=True))
+        self.rel_embeddings = tf.get_variable(name="rel_embeddings", shape=[config.relTotal, config.hidden_size],
+                                              initializer=tf.contrib.layers.xavier_initializer(uniform=True))
+        self.parameter_lists = {"ent_embeddings": self.ent_embeddings, \
+                                "rel_embeddings": self.rel_embeddings}
 
-def _term(h, t, l):
-    return h * l * t
+    def loss_def(self):
+        # Obtaining the initial configuration of the model
+        config = self.get_config()
+        # To get positive triples and negative triples for training
+        # To get labels for the triples, positive triples as 1 and negative triples as -1
+        # The shapes of h, t, r, y are (batch_size, 1 + negative_ent + negative_rel)
+        h, t, r = self.get_all_instance()
+        y = self.get_all_labels()
+        # Embedding entities and relations of triples
+        e_h = tf.nn.embedding_lookup(self.ent_embeddings, h)
+        e_t = tf.nn.embedding_lookup(self.ent_embeddings, t)
+        e_r = tf.nn.embedding_lookup(self.rel_embeddings, r)
+        # Calculating score functions for all positive triples and negative triples
+        res = tf.reduce_sum(self._calc(e_h, e_t, e_r), 1, keep_dims=False)
+        loss_func = tf.reduce_mean(tf.nn.softplus(- y * res))
+        regul_func = tf.reduce_mean(e_h ** 2) + tf.reduce_mean(e_t ** 2) + tf.reduce_mean(e_r ** 2)
+        # Calculating loss to get what the framework will optimize
+        self.loss = loss_func + config.lmbda * regul_func
 
-
-class DistMult(BaseModel):
-    def __init__(self, dimension, weight, **kwargs):
-        self.dimension = dimension
-        self.weight = weight
-        super().__init__(**kwargs)
-
-    def __str__(self):
-        return '{}-{}'.format(type(self).__name__, self.dimension)
-
-    def _score(self, h, t, l):
-        """The term to score triples."""
-
-        return self._norm(_term(*_lookup(h, t, l)))  # [.]
-
-    def _embedding_def(self):
-        """Initializes the variables of the model."""
-        ent = tf.get_variable('ent_embeddings', [self.ent_count, self.dimension])
-        rel = tf.get_variable('rel_embeddings', [self.rel_count, self.dimension])
-
-        yield 'ent_embeddings', ent
-        yield 'rel_embeddings', rel
-
-        self._entity = _at(ent, self.predict_h)
-        self._relation = _at(rel, self.predict_l)
-
-    def _loss_def(self):
-        """Initializes the loss function."""
-        h, t, r = _lookup(*self.get_all_instance())  # [bp+bn,d]
-        y = self.get_all_labels()  # [bp+bn]
-
-        s = self._norm(_term(h, t, r))  # [bp+bn]
-        loss = tf.reduce_mean(_softplus(y * s))  # []
-        reg = tf.reduce_mean(h ** 2) + tf.reduce_mean(t ** 2) + tf.reduce_mean(r ** 2)  # []
-
-        return loss + self.weight * reg  # []
-
-    def _predict_def(self):
-        """Initializes the prediction function."""
-
-        return self._score(*self.get_predict_instance())  # [b]
+    def predict_def(self):
+        config = self.get_config()
+        predict_h, predict_t, predict_r = self.get_predict_instance()
+        predict_h_e = tf.nn.embedding_lookup(self.ent_embeddings, predict_h)
+        predict_t_e = tf.nn.embedding_lookup(self.ent_embeddings, predict_t)
+        predict_r_e = tf.nn.embedding_lookup(self.rel_embeddings, predict_r)
+        self.predict = -tf.reduce_sum(self._calc(predict_h_e, predict_t_e, predict_r_e), 1, keep_dims=True)

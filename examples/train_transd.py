@@ -18,8 +18,7 @@ embedding = Embedding(
 )
 
 # Train the model. It is saved in the process.
-# TODO: Currently not working
-embedding.train(prefix="./TransD", post_epoch=print)
+embedding.train(prefix="./TransD")
 
 # Save the embedding to a JSON file
 embedding.save_to_json("TransD.json")

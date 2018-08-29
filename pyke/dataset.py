@@ -1,11 +1,8 @@
 # -*- coding: utf-8 -*-
 import ctypes
 
-import numpy as np
-
 from pyke.library import Library
 from pyke.parser import NTriplesParser
-from pyke.utils import get_array_pointer
 
 
 class Dataset(object):
@@ -43,12 +40,22 @@ class Dataset(object):
         parser = NTriplesParser(filename, temp_dir, generate_valid_test)
         parser.parse()
 
-        self.__library.importTrainFiles(
-            ctypes.c_char_p(bytes(parser.train_file, 'utf-8')),
-            parser.ent_count,
-            parser.rel_count,
-        )
-        self.generate_valid_test  =generate_valid_test
+        self.benchmark_dir = parser.output_dir if parser.output_dir[:-1] == "/" else parser.output_dir + "/"
+        self.__library.setInPath(ctypes.create_string_buffer( self.benchmark_dir.encode(), len( self.benchmark_dir) * 2))
+        # self.lib.setBern(self.bern)
+        # self.lib.setWorkThreads(self.workThreads)
+        # self.lib.randReset()
+        self.__library.importTrainFiles()
+        if generate_valid_test:
+            self.__library.importTestFiles()
+            self.__library.importTypeFiles()
+
+        # self.__library.importTrainFiles(
+        #    ctypes.c_char_p(bytes(parser.train_file, 'utf-8')),
+        #    parser.ent_count,
+        #    parser.rel_count,
+        # )
+        self.generate_valid_test = generate_valid_test
         self.size = parser.train_count
         self.ent_count = parser.ent_count
         self.rel_count = parser.rel_count
@@ -77,27 +84,28 @@ class Dataset(object):
         :return: A boolean array, deciding for each candidate whether or not the resulting statement is
             contained in the dataset.
         """
-        if head is None:
-            if tail is None:
-                if relation is None:
-                    raise NotImplementedError('querying everything')
-                raise NotImplementedError('querying full relation')
-            if relation is None:
-                raise NotImplementedError('querying full head')
-            heads = np.zeros(self.shape[0], np.bool_)
-            self.__library.query_head(get_array_pointer(heads), tail, relation)
-            return heads
-        if tail is None:
-            if relation is None:
-                raise NotImplementedError('querying full tail')
-            tails = np.zeros(self.shape[0], np.bool_)
-            self.__library.query_tail(head, get_array_pointer(tails), relation)
-            return tails
-        if relation is None:
-            relations = np.zeros(self.shape[1], np.bool_)
-            self.__library.query_rel(head, tail, get_array_pointer(relations))
-            return relations
-        raise NotImplementedError('querying single facts')
+        raise NotImplementedError
+        # if head is None:
+        #     if tail is None:
+        #         if relation is None:
+        #             raise NotImplementedError('querying everything')
+        #         raise NotImplementedError('querying full relation')
+        #     if relation is None:
+        #         raise NotImplementedError('querying full head')
+        #     heads = np.zeros(self.shape[0], np.bool_)
+        #     self.__library.query_head(get_array_pointer(heads), tail, relation)
+        #     return heads
+        # if tail is None:
+        #     if relation is None:
+        #         raise NotImplementedError('querying full tail')
+        #     tails = np.zeros(self.shape[0], np.bool_)
+        #     self.__library.query_tail(head, get_array_pointer(tails), relation)
+        #     return tails
+        # if relation is None:
+        #     relations = np.zeros(self.shape[1], np.bool_)
+        #     self.__library.query_rel(head, tail, get_array_pointer(relations))
+        #     return relations
+        # raise NotImplementedError('querying single facts')
 
     @staticmethod
     def read_benchmark(filename):
