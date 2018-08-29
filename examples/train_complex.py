@@ -8,7 +8,7 @@ embedding = Embedding(
     dataset,
     ComplEx,
     folds=100,
-    epochs=500,
+    epochs=20,
     neg_ent=1,
     neg_rel=0,
     bern=False,

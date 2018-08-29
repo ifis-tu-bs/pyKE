@@ -52,7 +52,7 @@ then train models and export results. Here is an example to train the FB15K data
     )
     
     # Train the model. It is saved in the process.
-    embedding.train(prefix="./TransE", post_epoch=print)
+    embedding.train(prefix="./TransE")
     
     # Save the embedding to a JSON file
     embedding.save_to_json("TransE.json")
@@ -66,17 +66,18 @@ Initialize your data set in form of a N-triples file with the class `pyke.datase
 
 ### Models
 
-The class `pyke.models.base.BaseModel` declares the methods that all implemented model classes share, including the loss function neccessairy for training (inserting information into the model) and prediction (aka. retrieving information from the model).
+The class `pyke.models.Model.Model` declares the methods that all implemented model classes share, including the loss function neccessairy for training (inserting information into the model) and prediction (aka. retrieving information from the model).
 This project implements the following model classes:
 
+- Analogy
+- ComplEx
+- DistMult
+- HolE
 - RESCAL
+- TransD
 - TransE
 - TransH
 - TransR
-- TransD
-- HolE
-- ComplEx
-- DistMult
 
 ## Notes
 

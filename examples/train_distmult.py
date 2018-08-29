@@ -8,7 +8,7 @@ embedding = Embedding(
     dataset,
     DistMult,
     folds=100,
-    epochs=500,
+    epochs=20,
     neg_ent=1,
     neg_rel=0,
     bern=False,
@@ -20,8 +20,7 @@ embedding = Embedding(
 )
 
 # Train the model. It is saved in the process.
-# TODO: Currently not working. Loss does not decrease
-embedding.train(prefix="./DistMult", continue_training=False)
+embedding.train(prefix="./DistMult")
 
 # Save the embedding to a JSON file
 embedding.save_to_json("DistMult.json")
