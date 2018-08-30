@@ -53,4 +53,4 @@ def get_rank(predictions: np.array, value: float):
     :return: index of the value (i.e. number of predictions smaller than value)
     """
     smaller_predictions = np.where(predictions < value)
-    return len(smaller_predictions[0])
+    return len(smaller_predictions[0]) + 1

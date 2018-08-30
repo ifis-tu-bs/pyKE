@@ -135,15 +135,17 @@ venv.bak/
 
 # IntelliJ
 .idea/
+
+# Projekt
 benchmarks/
-result/
 .pyke/
 tests/tmp
+/OpenKE/
 
 # Tensorflow models
-checkpoint
-*.data-*
-*.index
+/checkpoint
+/*.data-*
+/*.index
 /*.json
-*.meta
-OpenKE/
+/*.meta
+pyke_ori

@@ -2,8 +2,8 @@ from setuptools import setup
 
 setup(
     name='pyKE',
-    version='0.1',
-    packages=['pyke', 'pyke.models', 'tests'],
+    version='0.2',
+    packages=['pyke', 'pyke.models', 'pyke.openke', 'tests'],
     package_dir={
         'pyke': 'pyke',
     },
@@ -11,7 +11,6 @@ setup(
         'pyke': [
             'cpp_library/*.cpp',
             'cpp_library/*.h',
-            'cpp_library/openke.hpp',
             'cpp_library/make.sh',
         ],
     },

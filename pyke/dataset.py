@@ -41,7 +41,7 @@ class Dataset(object):
         parser.parse()
 
         self.benchmark_dir = parser.output_dir if parser.output_dir[:-1] == "/" else parser.output_dir + "/"
-        self.__library.setInPath(ctypes.create_string_buffer( self.benchmark_dir.encode(), len( self.benchmark_dir) * 2))
+        self.__library.setInPath(ctypes.create_string_buffer(self.benchmark_dir.encode(), len(self.benchmark_dir) * 2))
         # self.lib.setBern(self.bern)
         # self.lib.setWorkThreads(self.workThreads)
         # self.lib.randReset()

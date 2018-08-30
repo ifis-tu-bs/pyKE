@@ -139,7 +139,6 @@ class Embedding:
             return self.__config.test_step(heads, tails, rels)[0]
         return self.__config.test_step(heads, tails, rels)
 
-
     # TODO: Add cross validation
     def train(self, prefix='best', save_steps: int = 100, continue_training=True):
         if os.path.exists(prefix + ".index") and continue_training:
@@ -182,8 +181,6 @@ class Embedding:
         This test filters only 'false' facts evaluating better than the question.
         See `openke.meanrank` for the unfiltered, or 'raw', version.
         """
-
-        # TODO: Is meanrank 0-based?
         if filtered:
             raise NotImplementedError("Filtered meanrank not implemented")
 
