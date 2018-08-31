@@ -16,7 +16,8 @@ class Dataset(object):
     describing an index in an ordered table.
     """
 
-    def __init__(self, filename: str, temp_dir: str = ".pyke", generate_valid_test: bool = False):
+    def __init__(self, filename: str, temp_dir: str = ".pyke", generate_valid_test: bool = False,
+                 fail_silently: bool = True):
         """
         Creates a new dataset from a N-triples file.
 
@@ -34,10 +35,11 @@ class Dataset(object):
 
         :param filename: Pathname to the N-triples file for training
         :param temp_dir: Directory for storing the benchmark files. Application needs write access
+        :param fail_silently: If true, ignore errors in file and skip lines
         """
         self.__library = Library.get_library(temp_dir)
 
-        parser = NTriplesParser(filename, temp_dir, generate_valid_test)
+        parser = NTriplesParser(filename, temp_dir, generate_valid_test,fail_silently)
         parser.parse()
 
         self.benchmark_dir = parser.output_dir if parser.output_dir[:-1] == "/" else parser.output_dir + "/"

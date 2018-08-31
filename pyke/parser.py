@@ -20,7 +20,7 @@ class NTriplesParser:
     Class creates benchmark files from a N-Triples file.
     """
 
-    def __init__(self, filename: str, temp_dir: str, generate_valid_test: bool = False):
+    def __init__(self, filename: str, temp_dir: str, generate_valid_test: bool = False, fail_silently: bool = True):
         """
         Initializes the parser and creates the `temp_dir`.
 
@@ -45,6 +45,7 @@ class NTriplesParser:
         self.train_count = None
         self.valid_count = None
         self.test_count = None
+        self.fail_silently = fail_silently
         # self.df_train = None
         # self.df_test = None
         # self.df_valid = None
@@ -87,8 +88,7 @@ class NTriplesParser:
         print(str(len(lines)) + " Triple lines")
         return lines
 
-    @staticmethod
-    def map_triple_lines(triple_lines: List[str]):
+    def map_triple_lines(self, triple_lines: List[str]):
         """
         Assigns each entity and each relation an id and creates a list of triples consisting of the ids.
 
@@ -111,10 +111,13 @@ class NTriplesParser:
         last_percentage = 0
         for triple_line in triple_lines:
             # split it and check if it is a triple
-            triple = split_nt_line(triple_line)
-
-            if len(triple) != 3:
-                sys.exit("Failure: Line is not a valid N-Triples line (parsing \"" + triple_line + "\")")
+            try:
+                triple = split_nt_line(triple_line)
+            except ValueError as e:
+                if self.fail_silently:
+                    skipped += 1
+                    continue
+                raise e
 
             # check if subject is in entities, add if not
             if triple[0] not in dict_ent:
