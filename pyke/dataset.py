@@ -42,27 +42,16 @@ class Dataset(object):
 
         self.benchmark_dir = parser.output_dir if parser.output_dir[:-1] == "/" else parser.output_dir + "/"
         self.__library.setInPath(ctypes.create_string_buffer(self.benchmark_dir.encode(), len(self.benchmark_dir) * 2))
-        # self.lib.setBern(self.bern)
-        # self.lib.setWorkThreads(self.workThreads)
-        # self.lib.randReset()
         self.__library.importTrainFiles()
         if generate_valid_test:
             self.__library.importTestFiles()
             self.__library.importTypeFiles()
 
-        # self.__library.importTrainFiles(
-        #    ctypes.c_char_p(bytes(parser.train_file, 'utf-8')),
-        #    parser.ent_count,
-        #    parser.rel_count,
-        # )
         self.generate_valid_test = generate_valid_test
         self.size = parser.train_count
         self.ent_count = parser.ent_count
         self.rel_count = parser.rel_count
         self.shape = self.ent_count, self.rel_count
-        # self.df_train = parser.df_train
-        # self.df_test = parser.df_test
-        # self.df_valid = parser.df_valid
         self.train_set = self.read_benchmark(parser.train_file)
         self.test_set = self.read_benchmark(parser.test_file) if generate_valid_test else []
         self.valid_set = self.read_benchmark(parser.valid_file) if generate_valid_test else []

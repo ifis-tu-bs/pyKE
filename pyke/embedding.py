@@ -49,13 +49,12 @@ class Embedding:
         for key, value in kwargs.items():
             if hasattr(self, key):
                 setattr(self, key, value)
-
-        self.__init()
+        self.__init_config()
 
     def __str__(self):
         return f"<Embedding: {self.model_class.__name__.split('.')[-1]} {self.get_model_parameters()}>"
 
-    def __init(self):
+    def __init_config(self):
         """Wrapper for the config object"""
         con = Config()
         con.set_in_path(self.dataset.benchmark_dir)
@@ -139,15 +138,21 @@ class Embedding:
             return self.__config.test_step(heads, tails, rels)[0]
         return self.__config.test_step(heads, tails, rels)
 
-    # TODO: Add cross validation
     def train(self, prefix='best', save_steps: int = 100, continue_training=True):
+        """
+        Train the embedding.
+
+        :param prefix: Model prefix to save
+        :param save_steps: Steps after which the model is saved
+        :param continue_training: If true and an existing model is found, the training is resumed
+        """
         if os.path.exists(prefix + ".index") and continue_training:
             print(f"Found model with prefix {prefix}. Continuing training ...")
             self.restore(prefix)
         else:
             self.__config.set_import_files(None)
         self.__config.set_export_files(prefix, save_steps)
-        self.__config.run()
+        self.__config.run()  # TODO: Add cross validation
 
     def save_to_json(self, path: str):
         """
@@ -155,37 +160,32 @@ class Embedding:
 
         :param path: JSON path
         """
-        # self.__model.save_to_json(path)
         self.__config.save_parameters(path)
 
     def restore(self, prefix: str):
+        """
+        Loads an existing embedding.
+
+        :param prefix: Prefix of the model files
+        """
         self.__config.set_import_files(prefix)
         self.__config.restore_tensorflow()
 
+    def get_validation_triples(self):
+        """
+        Returns a list of triples used for the metrics.
+        """
+        return self.dataset.valid_set if self.dataset.generate_valid_test else self.dataset.train_set
+
     def meanrank(self, filtered=False, head=True, tail=True, label=False):
         """
-        Computes the mean rank of link prediction of one batch of the data.
-        Returns floating values between 0 and size-1
-        where lower results denote better models.
-        The return value consists of up to three values,
-        one for each of the columns 'head', 'tail' and 'label'.
-
-            Arguments
-        model - The to-be-tested embedding model.
-        folds - Amount of batches the data is separated.
-        index - Identifier of the tested batch.
-        head, tail, label - Truth values denoting
-        whether or not the respecting column should be tested.
-
-            Note
-        This test filters only 'false' facts evaluating better than the question.
-        See `openke.meanrank` for the unfiltered, or 'raw', version.
+        Computes the mean rank of the embedding.
         """
         if filtered:
             raise NotImplementedError("Filtered meanrank not implemented")
 
         ranks = []
-        triples = self.dataset.valid_set if self.dataset.generate_valid_test else self.dataset.train_set
+        triples = self.get_validation_triples()
         last_percent = 0.0
         count = len(triples)
 
@@ -215,5 +215,28 @@ class Embedding:
         sys.stdout.write(f"\rCalculating mean rank ... done in {datetime.datetime.now() - start_time}\n")
         return np.array(ranks).mean()
 
-    def hits_at_k(self, k, filtered=False):
-        raise NotImplementedError
+    def hits_at_k(self, k: int, filtered: bool = False):
+        """
+        Calculates the hits@k metric (raw or filtered) for the embedding.
+
+        :param k: First top k elements to look at
+        :param filtered: flat for filtered hits@k (otherwise raw)
+        """
+        raise NotImplementedError("Hits@k is currently not implemented.")
+
+    def get_ent_embeddings(self):
+        """
+        Returns the entity embedding.
+
+        :return: Entity embedding as numpy matrix
+        """
+        return self.__config.get_parameters_by_name("ent_embeddings")
+
+    def get_parameters(self):
+        """
+        Returns all embedding parameters in dependence of the model These can be the entity embedding, relation
+        embedding, transfer matrices, etc.
+
+        :return: dictionary with parameters
+        """
+        return self.__config.get_parameters()
