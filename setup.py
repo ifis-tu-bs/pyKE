@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='pyKE',
-    version='0.3.0',
+    version='0.4.0',
     packages=['pyke', 'pyke.models', 'pyke.openke', 'tests'],
     package_dir={
         'pyke': 'pyke',

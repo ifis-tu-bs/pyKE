@@ -46,9 +46,6 @@ class NTriplesParser:
         self.valid_count = None
         self.test_count = None
         self.fail_silently = fail_silently
-        # self.df_train = None
-        # self.df_test = None
-        # self.df_valid = None
 
     def parse(self):
         """
@@ -284,6 +281,3 @@ class NTriplesParser:
         self.train_count = len(df_train)
         self.test_count = len(df_test)
         self.valid_count = len(df_valid)
-        # self.df_train = df_train
-        # self.df_valid = df_valid
-        # self.df_test = df_test

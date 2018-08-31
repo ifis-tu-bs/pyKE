@@ -39,7 +39,7 @@ class Dataset(object):
         """
         self.__library = Library.get_library(temp_dir)
 
-        parser = NTriplesParser(filename, temp_dir, generate_valid_test,fail_silently)
+        parser = NTriplesParser(filename, temp_dir, generate_valid_test, fail_silently)
         parser.parse()
 
         self.benchmark_dir = parser.output_dir if parser.output_dir[:-1] == "/" else parser.output_dir + "/"
@@ -57,10 +57,46 @@ class Dataset(object):
         self.train_set = self.read_benchmark(parser.train_file)
         self.test_set = self.read_benchmark(parser.test_file) if generate_valid_test else []
         self.valid_set = self.read_benchmark(parser.valid_file) if generate_valid_test else []
+        self.entity2id = {}
+        self.id2entity = {}
+        self.relation2id = {}
+        self.id2relation = {}
+        with open(parser.entity_file) as f:
+            f.readline()
+            for line in f:
+                try:
+                    ent, ent_id = line.rsplit(maxsplit=1)
+                    ent_id = int(ent_id)
+                    self.entity2id[ent] = ent_id
+                    self.id2entity[ent_id] = ent
+                except ValueError:
+                    continue
+        with open(parser.relation_file) as f:
+            f.readline()
+            for line in f:
+                try:
+                    rel, rel_id = line.rsplit(maxsplit=1)
+                    rel_id = int(rel_id)
+                    self.relation2id[rel] = rel_id
+                    self.id2relation[rel_id] = rel
+                except ValueError:
+                    continue
 
     def __len__(self):
         """Returns the size of the dataset."""
         return self.size
+
+    def get_entity_id(self, entity):
+        return self.entity2id[entity]
+
+    def get_entity(self, eid):
+        return self.id2entity[eid]
+
+    def get_relation_id(self, relation):
+        return self.relation2id[relation]
+
+    def get_relation(self, rid):
+        return self.id2relation[rid]
 
     def query(self, head, tail, relation):
         """
