@@ -16,8 +16,10 @@ class TestEmbedding(TestCase):
         Embedding(self.dataset, TransE)
 
     def test_train_transe(self):
-        em = Embedding(self.dataset, TransE)
+        em = Embedding(self.dataset, TransE, epochs=5)
         em.train("./tests/tmp/TransE", continue_training=False)
+        self.assertLessEqual(0, em.get_loss())
+        self.assertGreaterEqual(4, em.get_loss())
 
     def test_get_ent_embeddings(self):
         em = Embedding(self.dataset, TransE)

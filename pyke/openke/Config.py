@@ -33,7 +33,9 @@ class Config(object):
         self.optimizer = None
         self.test_link_prediction = False
         self.test_triple_classification = False
+        # Own properties
         self.per_process_gpu_memory_fraction = 0.5
+        self.current_loss = 0.0
 
     def init_link_prediction(self):
         self.test_h = np.zeros(self.lib.getEntityTotal(), dtype=np.int64)
@@ -267,7 +269,7 @@ class Config(object):
                     grads_and_vars = self.optimizer.compute_gradients(self.trainModel.loss)
                     self.train_op = self.optimizer.apply_gradients(grads_and_vars)
                 self.saver = tf.train.Saver()
-                self.sess.run(tf.initialize_all_variables())
+                self.sess.run(tf.global_variables_initializer())
 
     def train_step(self, batch_h, batch_t, batch_r, batch_y):
         feed_dict = {
@@ -298,6 +300,7 @@ class Config(object):
                     for batch in range(self.nbatches):
                         self.sampling()
                         res += self.train_step(self.batch_h, self.batch_t, self.batch_r, self.batch_y)
+                    self.current_loss = res
                     if self.log_on:
                         print(times)
                         print(res)

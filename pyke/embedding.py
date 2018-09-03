@@ -240,3 +240,6 @@ class Embedding:
         :return: dictionary with parameters
         """
         return self.__config.get_parameters()
+
+    def get_loss(self):
+        return self.__config.current_loss
