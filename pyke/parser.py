@@ -56,7 +56,7 @@ class NTriplesParser:
         if os.path.exists(self.entity_file) and os.path.exists(self.relation_file) and os.path.exists(
                 self.train_file) and (
                 not self.generate_valid_test or (os.path.exists(self.valid_file) and os.path.exists(self.test_file))):
-            print(f"Benchmark found: {self.output_dir}")
+            print("Benchmark found: {}".format(self.output_dir))
             with open(self.entity_file) as f:
                 self.ent_count = int(f.readline())
             with open(self.relation_file) as f:

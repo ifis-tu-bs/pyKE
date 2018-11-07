@@ -34,8 +34,8 @@ class Embedding:
         self.neg_rel = 0
         self.bern = True
         self.workers = 1
-        self.folds = 1
-        self.epochs = 1
+        self.folds = 20
+        self.epochs = 50
         self.optimizer = "SGD"
         self.per_process_gpu_memory_fraction = 0.5
         self.learning_rate = 0.01
@@ -52,7 +52,7 @@ class Embedding:
         self.__init_config()
 
     def __str__(self):
-        return f"<Embedding: {self.model_class.__name__.split('.')[-1]} {self.get_model_parameters()}>"
+        return "<Embedding: {} {}>".format(self.model_class.__name__.split('.')[-1], self.get_model_parameters())
 
     def __init_config(self):
         """Wrapper for the config object"""
@@ -97,7 +97,7 @@ class Embedding:
         elif self.model_class in (models.HolE, models.RESCAL, models.TransE, models.TransD, models.TransH):
             return self.dimension, self.margin
         else:
-            raise ValueError(f"Model class {self.model_class.__name__} is not supported.")
+            raise ValueError("Model class {} is not supported.".format(self.model_class.__name__))
 
     @property
     def batch_size(self):
@@ -147,7 +147,7 @@ class Embedding:
         :param continue_training: If true and an existing model is found, the training is resumed
         """
         if os.path.exists(prefix + ".index") and continue_training:
-            print(f"Found model with prefix {prefix}. Continuing training ...")
+            print("Found model with prefix {}. Continuing training ...".format(prefix))
             self.restore(prefix)
         else:
             self.__config.set_import_files(None)
@@ -190,7 +190,7 @@ class Embedding:
         count = len(triples)
 
         start_time = datetime.datetime.now()
-        sys.stdout.write(f"Calculating mean rank ...")
+        sys.stdout.write("Calculating mean rank ...")
         for idx, (head_id, tail_id, label_id) in enumerate(triples):
             value = self.predict(head_id, tail_id, label_id)
             if head:
@@ -208,11 +208,11 @@ class Embedding:
 
             percent = idx * 100.0 / count
             if percent > last_percent:
-                sys.stdout.write(f"\rCalculating mean rank ... {percent:.2f} %")
+                sys.stdout.write("\rCalculating mean rank ... {:.2f} %".format(percent))
                 sys.stdout.flush()
                 last_percent = percent
 
-        sys.stdout.write(f"\rCalculating mean rank ... done in {datetime.datetime.now() - start_time}\n")
+        sys.stdout.write("\rCalculating mean rank ... done in {}\n".format(datetime.datetime.now() - start_time))
         return np.array(ranks).mean()
 
     def hits_at_k(self, k: int, filtered: bool = False):
