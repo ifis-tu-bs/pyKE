@@ -32,12 +32,14 @@ platform to run models on GPUs.
 To compute a knowledge graph embedding, first import datasets and set configure parameters for training, 
 then train models and export results. Here is an example to train the FB15K dataset with the TransE model.
 
+Please note that the dataset (`fb15k.nt`) is not included in the repository.
+
 	from pyke.dataset import Dataset
     from pyke.embedding import Embedding
     from pyke.models import TransE
     
     # Read the dataset
-    dataset = Dataset("./benchmarks/fb15k.nt")
+    dataset = Dataset("./fb15k.nt") 
     embedding = Embedding(
         dataset,
         TransE,
@@ -81,6 +83,5 @@ This project implements the following model classes:
 
 ## Notes
 
-The original fork consists of a C++ library which is compiled once you use the project. Please note,
-that the compilation is only supported on **UNIX-based systems**. In the future the C++ library should be replaced
-by a python library.
+The original fork consists of a C++ library which is compiled once you use the project.
+Please note that the compilation is only supported on **UNIX-based systems**. Maybe this is changed in future versions.
