@@ -1,6 +1,6 @@
 # pyKE
 
-An Open-source library for Knowledge Embedding forked from [github.org/thunlp/OpenKE](http://github.org/thunlp/OpenKE).
+An Open-source library for Knowledge Embedding forked from [github.com/thunlp/OpenKE](http://github.org/thunlp/OpenKE).
 The original API changed drastically to be more pythonic.
 
 For a full documentation see [pyke.readthedocs.io](https://pyke.readthedocs.io/en/latest/).
