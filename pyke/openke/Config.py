@@ -302,8 +302,7 @@ class Config(object):
                         res += self.train_step(self.batch_h, self.batch_t, self.batch_r, self.batch_y)
                     self.current_loss = res
                     if self.log_on:
-                        print(times)
-                        print(res)
+                        print('[Epoch {}] Loss: {}'.format(times, res))
                     if self.exportName != None and (self.export_steps != 0 and times % self.export_steps == 0):
                         self.save_tensorflow()
                 if self.exportName != None:
@@ -327,7 +326,7 @@ class Config(object):
                         res = self.test_step(self.test_h, self.test_t, self.test_r)
                         self.lib.testTail(res.__array_interface__['data'][0])
                         if self.log_on:
-                            print(times)
+                            print('Epoch: {}'.format(times))
                     self.lib.test_link_prediction()
                 if self.test_triple_classification:
                     self.lib.getValidBatch(self.valid_pos_h_addr, self.valid_pos_t_addr, self.valid_pos_r_addr,
@@ -353,7 +352,7 @@ class Config(object):
         test_r = np.array([r] * self.entTotal)
         test_t = np.array(range(self.entTotal))
         res = self.test_step(test_h, test_t, test_r).reshape(-1).argsort()[:10]
-        print(res)
+        print('Loss: {}'.format(res))
         return res
 
     def show_triple_classification(self, h, t, r):
