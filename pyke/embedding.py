@@ -232,6 +232,15 @@ class Embedding:
         """
         return self.__config.get_parameters_by_name("ent_embeddings")
 
+
+    def get_rel_embeddings(self):
+        """
+        Returns the relationship embedding.
+
+        :return: Entity embedding as numpy matrix
+        """
+        return self.__config.get_parameters_by_name("rel_embeddings")
+
     def get_parameters(self):
         """
         Returns all embedding parameters in dependence of the model These can be the entity embedding, relation
