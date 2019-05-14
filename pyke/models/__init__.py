@@ -6,3 +6,4 @@ from .TransD import TransD
 from .TransE import TransE
 from .TransH import TransH
 from .TransR import TransR
+from .Analogy import Analogy

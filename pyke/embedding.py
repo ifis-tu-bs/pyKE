@@ -94,7 +94,7 @@ class Embedding:
             return self.dimension, self.weight
         elif self.model_class == models.TransR:
             return self.ent_dim, self.rel_dim, self.margin
-        elif self.model_class in (models.HolE, models.RESCAL, models.TransE, models.TransD, models.TransH):
+        elif self.model_class in (models.HolE, models.RESCAL, models.TransE, models.TransD, models.TransH, models.Analogy):
             return self.dimension, self.margin
         else:
             raise ValueError("Model class {} is not supported.".format(self.model_class.__name__))
